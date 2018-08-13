@@ -68,7 +68,10 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_groundFilterDistance(0.04), m_groundFilterAngle(0.15), m_groundFilterPlaneDistance(0.07),
   m_compressMap(true),
   m_incrementalUpdate(false),
-  m_initConfig(true)
+  m_initConfig(true),
+  m_degradeTimeThreshold(-1),
+  m_degradeTimeDelta(0.0),
+  m_degradeLastTime(ros::Time::now()),
 {
   double probHit, probMiss, thresMin, thresMax;
 
@@ -108,6 +111,12 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   private_nh.param("sensor_model/max", thresMax, 0.97);
   private_nh.param("compress_map", m_compressMap, m_compressMap);
   private_nh.param("incremental_2D_projection", m_incrementalUpdate, m_incrementalUpdate);
+
+  // only enabled when degradeTimeThreshold is non-negative
+  private_nh.param("degrade_time_threshold", m_degradeTimeThreshold, m_degradeTimeThreshold);
+  double timeDelta;
+  private_nh.param("degrade_time_delta", timeDelta, 0.0);
+  m_degradeTimeDelta = ros::Duration(timeDelta);
 
   if (m_filterGroundPlane && (m_pointcloudMinZ > 0.0 || m_pointcloudMaxZ < 0.0)){
     ROS_WARN_STREAM("You enabled ground filtering but incoming pointclouds will be pre-filtered in ["
@@ -470,6 +479,13 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   maxPt = m_octree->keyToCoord(m_updateBBXMax);
   ROS_DEBUG_STREAM("Updated area bounding box: "<< minPt << " - "<<maxPt);
   ROS_DEBUG_STREAM("Bounding box keys (after): " << m_updateBBXMin[0] << " " <<m_updateBBXMin[1] << " " << m_updateBBXMin[2] << " / " <<m_updateBBXMax[0] << " "<<m_updateBBXMax[1] << " "<< m_updateBBXMax[2]);
+
+  // Degrade if necessary
+  if (m_degradeTimeThreshold >= 0 && startTime - m_degradeLastTime >= m_degradeTimeDelta)
+  {
+    m_degradeLastTime = startTime;
+    m_octree->degradeOutdatedNodes(m_degradeTimeThreshold);
+  }
 
   if (m_compressMap)
     m_octree->prune();

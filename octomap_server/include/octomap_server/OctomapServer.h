@@ -72,6 +72,8 @@
 #include <octomap/ColorOcTree.h>
 #endif
 
+#include <octomap/OcTreeStamped.h>
+
 namespace octomap_server {
 class OctomapServer {
 
@@ -83,7 +85,7 @@ public:
 #else
   typedef pcl::PointXYZ PCLPoint;
   typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
-  typedef octomap::OcTree OcTreeT;
+  typedef octomap::OcTreeStamped OcTreeT;
 #endif
   typedef octomap_msgs::GetOctomap OctomapSrv;
   typedef octomap_msgs::BoundingBoxQuery BBXSrv;
@@ -257,6 +259,11 @@ protected:
   unsigned m_multires2DScale;
   bool m_projectCompleteMap;
   bool m_useColoredMap;
+
+  // time-based degrading
+  int m_degradeTimeThreshold;
+  ros::Duration m_degradeTimeDelta;
+  ros::Time m_degradeLastTime;
 };
 }
 
