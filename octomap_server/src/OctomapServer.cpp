@@ -71,7 +71,10 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_compressPeriod(0.0),
   m_compressLastTime(ros::Time::now()),
   m_incrementalUpdate(false),
-  m_initConfig(true)
+  m_initConfig(true),
+  m_degradeTimeThreshold(-1),
+  m_degradeTimeDelta(0.0),
+  m_degradeLastTime(ros::Time::now()),
 {
   double probHit, probMiss, thresMin, thresMax;
 
@@ -118,6 +121,12 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   private_nh.param("compress_map", m_compressMap, m_compressMap);
   private_nh.param("compress_period", m_compressPeriod, m_compressPeriod);
   private_nh.param("incremental_2D_projection", m_incrementalUpdate, m_incrementalUpdate);
+
+  // only enabled when degradeTimeThreshold is non-negative
+  private_nh.param("degrade_time_threshold", m_degradeTimeThreshold, m_degradeTimeThreshold);
+  double timeDelta;
+  private_nh.param("degrade_time_delta", timeDelta, 0.0);
+  m_degradeTimeDelta = ros::Duration(timeDelta);
 
   if (m_filterGroundPlane && (m_pointcloudMinZ > 0.0 || m_pointcloudMaxZ < 0.0)){
     ROS_WARN_STREAM("You enabled ground filtering but incoming pointclouds will be pre-filtered in ["
@@ -602,6 +611,13 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
       m_compressLastTime = now;
       m_octree->prune();
     }
+  }
+
+  // Degrade if necessary
+  if (m_degradeTimeThreshold >= 0 && startTime - m_degradeLastTime >= m_degradeTimeDelta)
+  {
+    m_degradeLastTime = startTime;
+    m_octree->degradeOutdatedNodes(m_degradeTimeThreshold);
   }
 
 #ifdef COLOR_OCTOMAP_SERVER
