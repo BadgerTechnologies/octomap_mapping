@@ -72,9 +72,8 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_compressLastTime(ros::Time::now()),
   m_incrementalUpdate(false),
   m_initConfig(true),
-  m_degradeTimeThreshold(-1),
-  m_degradeTimeDelta(0.0),
-  m_degradeLastTime(ros::Time::now()),
+  m_expirePeriod(0.0),
+  m_expireLastTime(ros::Time::now())
 {
   double probHit, probMiss, thresMin, thresMax;
 
@@ -122,11 +121,8 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   private_nh.param("compress_period", m_compressPeriod, m_compressPeriod);
   private_nh.param("incremental_2D_projection", m_incrementalUpdate, m_incrementalUpdate);
 
-  // only enabled when degradeTimeThreshold is non-negative
-  private_nh.param("degrade_time_threshold", m_degradeTimeThreshold, m_degradeTimeThreshold);
-  double timeDelta;
-  private_nh.param("degrade_time_delta", timeDelta, 0.0);
-  m_degradeTimeDelta = ros::Duration(timeDelta);
+  // only enabled when expireTimeDelta is positive
+  private_nh.param("expire_time_delta", m_expirePeriod, m_expirePeriod);
 
   if (m_filterGroundPlane && (m_pointcloudMinZ > 0.0 || m_pointcloudMaxZ < 0.0)){
     ROS_WARN_STREAM("You enabled ground filtering but incoming pointclouds will be pre-filtered in ["
@@ -605,19 +601,23 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   ROS_DEBUG_STREAM("Bounding box keys (after): " << m_updateBBXMin[0] << " " <<m_updateBBXMin[1] << " " << m_updateBBXMin[2] << " / " <<m_updateBBXMax[0] << " "<<m_updateBBXMax[1] << " "<< m_updateBBXMax[2]);
 
   // Prune map if past period
+  bool pruned = false;
+  ros::Time now = ros::Time::now();
   if (m_compressMap) {
-    ros::Time now = ros::Time::now();
     if (now >= m_compressLastTime + ros::Duration(m_compressPeriod)) {
       m_compressLastTime = now;
       m_octree->prune();
+      pruned = true;
     }
   }
 
-  // Degrade if necessary
-  if (m_degradeTimeThreshold >= 0 && startTime - m_degradeLastTime >= m_degradeTimeDelta)
-  {
-    m_degradeLastTime = startTime;
-    m_octree->degradeOutdatedNodes(m_degradeTimeThreshold);
+  // Expire if necessary, skip if we just did a pruning cycle
+  // (We don't want to do both in one update, as they are both expensive)
+  if (!pruned && m_expirePeriod > 0.0) {
+    if (now >= m_expireLastTime + ros::Duration(m_expirePeriod)) {
+      m_expireLastTime = now;
+      m_octree->expireNodes();
+    }
   }
 
 #ifdef COLOR_OCTOMAP_SERVER
