@@ -72,6 +72,8 @@
 #include <octomap/ColorOcTree.h>
 #endif
 
+#include "octomap_server/BinaryOcTree.h"
+
 namespace octomap_server {
 class OctomapServer {
 
@@ -157,6 +159,12 @@ protected:
   * @param nonground all other endpoints (clear up to occupied endpoint)
   */
   virtual void insertScan(const tf::Point& sensorOrigin, const PCLPointCloud& ground, const PCLPointCloud& nonground);
+
+  /* Trace backwards from end to origin, adding traced cells to free_cells.
+   * Stops tracing when the cell already exists.
+   * Does not add the end cell (as it may be occupied or not, left to caller.)
+   * This assumes bounds checking, etc., were done by the caller. */
+  void addRayToFreeCells(const octomap::point3d& end, const octomap::point3d& origin, octomap_server::BinaryOcTree& free_cells) const;
 
   /// label the input cloud "pc" into ground and nonground. Should be in the robot's fixed frame (not world!)
   void filterGroundPlane(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const;

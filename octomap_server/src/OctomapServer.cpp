@@ -28,6 +28,7 @@
  */
 
 #include <octomap_server/OctomapServer.h>
+#include <octomap_server/BinaryOcTree.h>
 
 using namespace octomap;
 using octomap_msgs::Octomap;
@@ -366,7 +367,14 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
 #endif
 
   // instead of direct scan insertion, compute update to filter ground:
-  KeySet free_cells, occupied_cells;
+  // We will only need about the number of points in the point cloud for
+  // occupied cells, so set the initial bucket size to that.
+  BinaryOcTree free_cells(m_octree->getResolution());
+//  KeySet occupied_cells(nonground.size());
+  // Guess that we will need about 10 times the number of free cells due to
+  // ray tracing.
+//  KeySet free_cells((nonground.size()+ground.size())*10+ground.size());
+
   // insert ground points only as free:
   for (PCLPointCloud::const_iterator it = ground.begin(); it != ground.end(); ++it){
     point3d point(it->x, it->y, it->z);
@@ -378,7 +386,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
     // free endpoint
     octomap::OcTreeKey endKey;
     if (m_octree->coordToKeyChecked(point, endKey)){
-      if (!free_cells.insert(endKey).second) {
+      if (!free_cells.insert(endKey)) {
         if (discrete) {
           // This ray has already been traced
           continue;
@@ -391,9 +399,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
     }
 
     // only clear space (ground points)
-    if (m_octree->computeRayKeys(sensorOrigin, point, m_keyRay)){
-      free_cells.insert(m_keyRay.begin(), m_keyRay.end());
-    }
+    addRayToFreeCells(point, sensorOrigin, free_cells);
   }
 
   // all other points: free on ray, occupied on endpoint:
@@ -405,7 +411,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
       // occupied endpoint
       OcTreeKey key;
       if (m_octree->coordToKeyChecked(point, key)){
-        if (!occupied_cells.insert(key).second) {
+        if (!free_cells.insert(key, true)) {
           if (discrete) {
             // This ray has already been traced
             continue;
@@ -425,16 +431,14 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
       }
 
       // free cells
-      if (m_octree->computeRayKeys(sensorOrigin, point, m_keyRay)){
-        free_cells.insert(m_keyRay.begin(), m_keyRay.end());
-      }
+      addRayToFreeCells(point, sensorOrigin, free_cells);
     } else {// ray longer than maxrange:;
       point3d new_end = sensorOrigin + (point - sensorOrigin).normalized() * m_maxRange;
 
       // free endpoint
       octomap::OcTreeKey endKey;
       if (m_octree->coordToKeyChecked(new_end, endKey)){
-        if (!free_cells.insert(endKey).second) {
+        if (!free_cells.insert(endKey)) {
           if (discrete) {
             // This ray has already been traced
             continue;
@@ -447,22 +451,15 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
       }
 
       // free cells
-      if (m_octree->computeRayKeys(sensorOrigin, new_end, m_keyRay)){
-        free_cells.insert(m_keyRay.begin(), m_keyRay.end());
-      }
+      addRayToFreeCells(new_end, sensorOrigin, free_cells);
     }
   }
 
-  // mark free cells only if not seen occupied in this cloud
-  for(KeySet::iterator it = free_cells.begin(), end=free_cells.end(); it!= end; ++it){
-    if (occupied_cells.find(*it) == occupied_cells.end()){
-      m_octree->updateNode(*it, false);
-    }
-  }
-
-  // now mark all occupied cells:
-  for (KeySet::iterator it = occupied_cells.begin(), end=occupied_cells.end(); it!= end; it++) {
-    m_octree->updateNode(*it, true);
+  // go through the leafs of the constructed binary tree, marking/clearing
+  for (BinaryOcTree::iterator it = free_cells.begin_leafs(),
+      end = free_cells.end_leafs(); it != end; ++it)
+  {
+    m_octree->updateNode(it.getKey(), it->getValue());
   }
 
   // TODO: eval lazy+updateInner vs. proper insertion
@@ -501,7 +498,95 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
 #endif
 }
 
+void OctomapServer::addRayToFreeCells(const point3d& end, const point3d& origin, BinaryOcTree& free_cells) const
+{
+  // a version of computeRayKeys from OcTreeBaseImpl.hxx which adds the ray
+  // keys directly to the free_cells KeySet and stops tracing when
+  // encountering a pre-existing key (pruning the tracing work to a minimum).
 
+  OcTreeKey key_end, key_origin;
+  key_end = m_octree->coordToKey(end);
+  key_origin = m_octree->coordToKey(origin);
+
+  // Nothing to do if origin and end are in same cell
+  if (key_origin == key_end)
+    return;
+
+  // Initialization
+  point3d direction = (origin - end);
+  float length = (float) direction.norm();
+  direction /= length; // normalize vector
+
+  int    step[3];
+  double tMax[3];
+  double tDelta[3];
+
+  OcTreeKey current_key = key_end;
+  OcTreeKey justOut;
+
+  for(unsigned int i=0; i < 3; ++i) {
+    // compute step direction
+    if (direction(i) > 0.0) step[i] =  1;
+    else if (direction(i) < 0.0)   step[i] = -1;
+    else step[i] = 0;
+
+    // compute tMax, tDelta, justOut
+    if (step[i] != 0) {
+      // corner point of voxel (in direction of ray)
+      double voxelBorder = m_octree->keyToCoord(current_key[i]);
+      voxelBorder += (float) (step[i] * m_octree->getResolution() * 0.5);
+
+      tMax[i] = ( voxelBorder - origin(i) ) / direction(i);
+      tDelta[i] = m_octree->getResolution() / fabs( direction(i) );
+      justOut[i] = key_origin[i] + step[i];
+    }
+    else {
+      tMax[i] =  std::numeric_limits<double>::max( );
+      tDelta[i] = std::numeric_limits<double>::max( );
+      justOut[i] = std::numeric_limits<key_type>::max( );
+    }
+  }
+
+  // Incremental phase
+  for (;;) {
+
+    if (tMax[0] < tMax[1]) {
+      if (tMax[0] < tMax[2]) {
+        current_key[0] += step[0];
+        tMax[0] += tDelta[0];
+        if (current_key[0] == justOut[0]) {
+          break;
+        }
+      } else {
+        current_key[2] += step[2];
+        tMax[2] += tDelta[2];
+        if (current_key[2] == justOut[2]) {
+          break;
+        }
+      }
+    } else {
+      if (tMax[1] < tMax[2]) {
+        current_key[1] += step[1];
+        tMax[1] += tDelta[1];
+        if (current_key[1] == justOut[1]) {
+          break;
+        }
+      } else {
+        current_key[2] += step[2];
+        tMax[2] += tDelta[2];
+        if (current_key[2] == justOut[2]) {
+          break;
+        }
+      }
+    }
+
+    // add the cell, stoping if hitting one already in free_cells
+    if (!free_cells.insert(current_key)) {
+      // we have hit a cell already in free_cells, done tracing
+      break;
+    }
+  }
+}
 
 void OctomapServer::publishAll(const ros::Time& rostime){
   ros::WallTime startTime = ros::WallTime::now();
