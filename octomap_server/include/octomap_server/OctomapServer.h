@@ -329,6 +329,8 @@ protected:
   double m_groundFilterPlaneDistance;
 
   bool m_compressMap;
+  double m_compressPeriod;
+  ros::Time m_compressLastTime;
 
   bool m_initConfig;
 
