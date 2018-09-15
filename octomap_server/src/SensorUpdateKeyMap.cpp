@@ -29,7 +29,10 @@ void SensorUpdateKeyMap::clear()
 }
 
 SensorUpdateKeyMap::SensorUpdateKeyMap(size_t initial_capacity, double max_load_factor)
-  : max_load_factor_(max_load_factor), free_cells_(NULL), free_cells_capacity_(0)
+  : max_load_factor_(max_load_factor)
+  , free_cells_(NULL)
+  , free_cells_capacity_(0)
+  , truncate_floor_(false)
 {
   initializeNodeCache(initial_capacity);
   calculateTableCapacity();
@@ -58,6 +61,12 @@ SensorUpdateKeyMap::iterator SensorUpdateKeyMap::find(const octomap::OcTreeKey& 
   return end();
 }
 
+void SensorUpdateKeyMap::setFloorTruncation(octomap::key_type floor_z)
+{
+  truncate_floor_ = true;
+  truncate_floor_z_ = floor_z;
+}
+
 inline bool SensorUpdateKeyMap::insertFreeByIndexImpl(const octomap::OcTreeKey& key, size_t index)
 {
   SensorUpdateKeyMap::Node *node = table_[index];
@@ -78,8 +87,13 @@ inline bool SensorUpdateKeyMap::insertFreeByIndexImpl(const octomap::OcTreeKey& 
 }
 
 // Returns true if a node was inserted, false if the node already existed
-bool SensorUpdateKeyMap::insertFree(const octomap::OcTreeKey& key)
+bool SensorUpdateKeyMap::insertFree(octomap::OcTreeKey& key)
 {
+  // apply floor truncation to the key first, moving the point to the floor
+  // if floor truncation is enabled and the z coord is below the floor
+  if (truncate_floor_ && key[2] < truncate_floor_z_) {
+    key.k[2] = truncate_floor_z_;
+  }
   octomap::OcTreeKey::KeyHash hasher;
   size_t hash = hasher(key);
   size_t index = hash % table_.size();
@@ -185,6 +199,14 @@ bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const oct
     }
   }
 
+  if (truncate_floor_ && justOut[2] < truncate_floor_z_) {
+    // truncation only makes sense if we are going from above to below
+    if (direction(2) < 0.0) {
+      // set just out just below the floor z value
+      justOut[2] = truncate_floor_z_ - 1;
+    }
+  }
+
   if (free_cells_capacity_ < max_cells)
   {
     // need more space
@@ -236,8 +258,13 @@ bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const oct
 }
 
 // Returns true if a node was inserted, false if the node already existed
-bool SensorUpdateKeyMap::insertOccupied(const octomap::OcTreeKey& key)
+bool SensorUpdateKeyMap::insertOccupied(octomap::OcTreeKey& key)
 {
+  // apply floor truncation to the key first, moving the point to the floor
+  // if floor truncation is enabled and the z coord is below the floor
+  if (truncate_floor_ && key[2] < truncate_floor_z_) {
+    key.k[2] = truncate_floor_z_;
+  }
   octomap::OcTreeKey::KeyHash hasher;
   size_t hash = hasher(key);
   size_t index = hash % table_.size();

@@ -35,13 +35,14 @@ public:
   SensorUpdateKeyMap(size_t initial_capacity=1024, double max_load_factor=0.5);
   ~SensorUpdateKeyMap();
 
-  bool insertFree(const octomap::OcTreeKey& key);
+  void setFloorTruncation(octomap::key_type floor_z);
+  bool insertFree(octomap::OcTreeKey& key);
   bool insertFreeCells(const octomap::OcTreeKey *free_cells, size_t free_cells_count);
   bool insertFreeRay(const octomap::point3d& origin, const octomap::point3d& end,
                      const octomap::OcTreeKey& key_origin, const octomap::OcTreeKey& key_end,
                      const octomap::point3d& origin_boundary,
                      double resolution);
-  bool insertOccupied(const octomap::OcTreeKey& key);
+  bool insertOccupied(octomap::OcTreeKey& key);
 
   // Returns true if the key was inserted, false if the key already existed
   // Invalidates all prior iterators if a key is inserted.
@@ -141,6 +142,9 @@ protected:
   size_t free_cells_capacity_;
 
   bool insertFreeByIndexImpl(const octomap::OcTreeKey& key, size_t index);
+
+  bool truncate_floor_;
+  octomap::key_type truncate_floor_z_;
 
 private:
   // non-copyable. we could implement a deep copy, but there is no use case
