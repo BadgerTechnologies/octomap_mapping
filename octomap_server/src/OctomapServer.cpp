@@ -473,6 +473,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   // instead of direct scan insertion, compute update to filter ground:
   static SensorUpdateKeyMap update_cells;
   update_cells.clear();
+  update_cells.setFloorTruncation(m_octree->coordToKey(0.0));
   // insert ground points only as free:
   for (PCLPointCloud::const_iterator it = ground.begin(); it != ground.end(); ++it){
     point3d point(it->x, it->y, it->z);
