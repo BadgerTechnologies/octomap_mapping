@@ -455,6 +455,8 @@ void OctomapServer::insertSegmentedCloudCallback(
 
 void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCloud& ground, const PCLPointCloud& nonground){
   point3d sensorOrigin = pointTfToOctomap(sensorOriginTf);
+  OcTreeKey originKey = m_octree->coordToKey(sensorOrigin);
+  point3d originBoundary = m_octree->keyToCoord(originKey);
 
   bool discrete = true;
 
@@ -496,8 +498,9 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
 
     // only clear space (ground points)
     update_cells.insertFreeRay(sensorOrigin, point,
-                               m_octree->coordToKey(sensorOrigin),
+                               originKey,
                                m_octree->coordToKey(point),
+                               originBoundary,
                                m_octree->getResolution());
   }
 
@@ -531,8 +534,9 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
 
       // free cells
       update_cells.insertFreeRay(sensorOrigin, point,
-                                 m_octree->coordToKey(sensorOrigin),
+                                 originKey,
                                  m_octree->coordToKey(point),
+                                 originBoundary,
                                  m_octree->getResolution());
     } else {// ray longer than maxrange:;
       point3d new_end = sensorOrigin + (point - sensorOrigin).normalized() * m_maxRange;
@@ -554,8 +558,9 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
 
       // free cells
       update_cells.insertFreeRay(sensorOrigin, new_end,
-                                 m_octree->coordToKey(sensorOrigin),
+                                 originKey,
                                  m_octree->coordToKey(new_end),
+                                 originBoundary,
                                  m_octree->getResolution());
     }
   }

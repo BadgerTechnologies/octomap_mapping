@@ -135,6 +135,7 @@ bool SensorUpdateKeyMap::insertFreeCells(const octomap::OcTreeKey *free_cells, s
 
 bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const octomap::point3d& end,
                      const octomap::OcTreeKey& key_origin, const octomap::OcTreeKey& key_end,
+                     const octomap::point3d& origin_boundary,
                      double resolution)
 {
   // a version of computeRayKeys from OcTreeBaseImpl.hxx which adds the ray
@@ -145,7 +146,7 @@ bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const oct
     return false;
 
   // Initialization
-  octomap::point3d direction = (origin - end);
+  octomap::point3d direction = (end - origin);
   float length = (float) direction.norm();
   direction /= length; // normalize vector
 
@@ -153,7 +154,7 @@ bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const oct
   double tMax[3];
   double tDelta[3];
 
-  octomap::OcTreeKey current_key = key_end;
+  octomap::OcTreeKey current_key = key_origin;
   octomap::OcTreeKey justOut;
 
   size_t max_cells = 0;
@@ -163,19 +164,19 @@ bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const oct
     max_cells += abs(key_origin[i] - key_end[i]) + 1;
 
     // compute step direction
-    if (direction(i) > 0.0) step[i] =  1;
-    else if (direction(i) < 0.0)   step[i] = -1;
+    if (direction(i) > 0.0) step[i] = 1;
+    else if (direction(i) < 0.0) step[i] = -1;
     else step[i] = 0;
 
     // compute tMax, tDelta, justOut
     if (step[i] != 0) {
       // corner point of voxel (in direction of ray)
-      double voxelBorder = end(i);
+      double voxelBorder = origin_boundary(i);
       voxelBorder += (float) (step[i] * resolution * 0.5);
 
       tMax[i] = ( voxelBorder - origin(i) ) / direction(i);
       tDelta[i] = resolution / fabs( direction(i) );
-      justOut[i] = key_origin[i] + step[i];
+      justOut[i] = key_end[i] + step[i];
     }
     else {
       tMax[i] =  std::numeric_limits<double>::max( );
@@ -197,6 +198,9 @@ bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const oct
 
   // Incremental phase
   for (;;) {
+
+    // add the cell
+    free_cells_[free_cells_count++] = current_key;
 
     if (tMax[0] < tMax[1]) {
       if (tMax[0] < tMax[2]) {
@@ -227,9 +231,6 @@ bool SensorUpdateKeyMap::insertFreeRay(const octomap::point3d& origin, const oct
         }
       }
     }
-
-    // add the cell
-    free_cells_[free_cells_count++] = current_key;
   }
   return insertFreeCells(free_cells_, free_cells_count);
 }

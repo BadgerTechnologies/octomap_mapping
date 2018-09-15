@@ -1,8 +1,8 @@
 #ifndef OCTOMAP_SENSOR_UPDATE_KEY_MAP_HH
 #define OCTOMAP_SENSOR_UPDATE_KEY_MAP_HH
 
-#include "octomap/octomap.h"
-#include "octomap/OcTreeKey.h"
+#include <octomap/octomap.h>
+#include <octomap/OcTreeKey.h>
 
 namespace octomap_server {
 
@@ -39,6 +39,7 @@ public:
   bool insertFreeCells(const octomap::OcTreeKey *free_cells, size_t free_cells_count);
   bool insertFreeRay(const octomap::point3d& origin, const octomap::point3d& end,
                      const octomap::OcTreeKey& key_origin, const octomap::OcTreeKey& key_end,
+                     const octomap::point3d& origin_boundary,
                      double resolution);
   bool insertOccupied(const octomap::OcTreeKey& key);
 
