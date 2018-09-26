@@ -47,6 +47,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_maxRange(-1.0),
   m_worldFrameId("/map"), m_baseFrameId("base_footprint"),
   m_useHeightMap(true),
+  m_useTimedMap(false),
   m_useColoredMap(false),
   m_colorFactor(0.8),
   m_latchedTopics(true),
@@ -81,6 +82,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   private_nh.param("frame_id", m_worldFrameId, m_worldFrameId);
   private_nh.param("base_frame_id", m_baseFrameId, m_baseFrameId);
   private_nh.param("height_map", m_useHeightMap, m_useHeightMap);
+  private_nh.param("timed_map", m_useTimedMap, m_useTimedMap);
   private_nh.param("colored_map", m_useColoredMap, m_useColoredMap);
   private_nh.param("color_factor", m_colorFactor, m_colorFactor);
 
@@ -143,6 +145,16 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
 #endif
   }
 
+  if (m_useHeightMap && m_useTimedMap) {
+    ROS_WARN_STREAM("You enabled both height map and timed map. This is contradictory. Defaulting to height map.");
+    m_useTimedMap = false;
+  }
+
+  if (m_useColoredMap && m_useTimedMap) {
+    ROS_WARN_STREAM("You enabled both colored map and timed map. This is contradictory. Defaulting to colored map.");
+    m_useTimedMap = false;
+  }
+
 
   // initialize octomap object & params
   m_octree = new OcTreeT(m_res);
@@ -153,6 +165,8 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_treeDepth = m_octree->getTreeDepth();
   m_maxTreeDepth = m_treeDepth;
   m_gridmap.info.resolution = m_res;
+  // get expiration time setup
+  m_octree->expireNodes();
 
   double r, g, b, a;
   private_nh.param("color/r", r, 0.0);
@@ -644,6 +658,11 @@ void OctomapServer::publishAll(const ros::Time& rostime){
     return;
   }
 
+  if (m_useTimedMap){
+    // If using a timed map, be sure all expiry's are up to date.
+    // The expiration may not be running in-sync
+    m_octree->expireNodes();
+  }
   bool publishFreeMarkerArray = m_publishFreeSpace && (m_latchedTopics || m_fmarkerPub.getNumSubscribers() > 0);
   bool publishMarkerArray = (m_latchedTopics || m_markerPub.getNumSubscribers() > 0);
   bool publishPointCloud = (m_latchedTopics || m_pointCloudPub.getNumSubscribers() > 0);
@@ -723,6 +742,24 @@ void OctomapServer::publishAll(const ros::Time& rostime){
 
             double h = (1.0 - std::min(std::max((cubeCenter.z-minZ)/ (maxZ - minZ), 0.0), 1.0)) *m_colorFactor;
             occupiedNodesVis.markers[idx].colors.push_back(heightMapColor(h));
+          }
+
+          if (m_useTimedMap){
+            time_t expiry = it->getExpiry();
+            time_t max_expiry_delta = m_octree->getMaxExpiryDelta();
+            time_t now = m_octree->getLastUpdateTime();
+            double d;
+            if ( expiry < now ) {
+              d = 0;
+            } else {
+              d = (expiry - now);
+              d /= static_cast<double>(max_expiry_delta);
+              d = sqrt(d);
+              d *= m_colorFactor;
+            }
+            // use the same color maping as the height map using our
+            // normalized and linearized expiration scale
+            occupiedNodesVis.markers[idx].colors.push_back(heightMapColor(d));
           }
 
 #ifdef COLOR_OCTOMAP_SERVER
