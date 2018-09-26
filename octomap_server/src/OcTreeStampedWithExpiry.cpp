@@ -7,8 +7,8 @@ OcTreeStampedWithExpiry::OcTreeStampedWithExpiry(double resolution)
   : OccupancyOcTreeBase<OcTreeNodeStampedWithExpiry>(resolution)
   , a_coeff(1.0 / 50.0)
   , c_coeff(15.0)
+  , last_expire_time(0)
 {
-  last_expire_time = ros::Time::now().sec;
   ocTreeStampedWithExpiryMemberInit.ensureLinking();
 }
 
@@ -112,7 +112,7 @@ void OcTreeStampedWithExpiry::updateNodeLogOdds(OcTreeNodeStampedWithExpiry* nod
     else
     {
       // Decay the value towards the background by an amount proportional to the remaining time
-      double decay_factor = 1.0 - ((double)curr_delta_t)/((double)orig_delta_t);
+      double decay_factor = ((double)curr_delta_t)/((double)orig_delta_t);
       double logodds_delta = node->getLogOdds() - occ_prob_thres_log;
       node->setLogOdds(occ_prob_thres_log + logodds_delta * decay_factor);
     }

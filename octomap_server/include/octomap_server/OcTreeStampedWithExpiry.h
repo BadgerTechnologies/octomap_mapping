@@ -88,22 +88,25 @@ class OcTreeNodeStampedWithExpiry : public octomap::OcTreeNode
 };
 
 
-// tree definition
+// Tree definition
 class OcTreeStampedWithExpiry : public octomap::OccupancyOcTreeBase <OcTreeNodeStampedWithExpiry>
 {
 
   public:
-    /// Default constructor, sets resolution of leafs
+    // Default constructor, sets resolution.
+    // Be sure to call expireNodes() after construction to initialize the
+    // expiration time. This can not be done in the default constructor
+    // because it is called before ros::Time::now() can be accessed.
     OcTreeStampedWithExpiry(double resolution);
 
-    /// virtual constructor: creates a new object of same type
-    /// (Covariant return type requires an up-to-date compiler)
+    // virtual constructor: creates a new object of same type
+    // (Covariant return type requires an up-to-date compiler)
     OcTreeStampedWithExpiry* create() const {return new OcTreeStampedWithExpiry(resolution); }
 
     std::string getTreeType() const {return "OcTreeStampedWithExpiry";}
 
-    //! \return Time of last update
-    time_t getLastUpdateTime();
+    // Time of last update
+    time_t getLastUpdateTime() const {return last_expire_time;}
 
     // Remove all expired nodes.
     // This also calculates and stores any missing expiration times in the tree.
@@ -112,6 +115,10 @@ class OcTreeStampedWithExpiry : public octomap::OccupancyOcTreeBase <OcTreeNodeS
 
     virtual void updateNodeLogOdds(OcTreeNodeStampedWithExpiry* node, const float& update) const;
     void integrateMissNoTime(OcTreeNodeStampedWithExpiry* node) const;
+
+    time_t getMaxExpiryDelta() const {
+      return a_coeff_log_odds * clamping_thres_max * clamping_thres_max + c_coeff;
+    }
 
   protected:
     // Quadratic delta-t expiration coefficients. The input is the number of
