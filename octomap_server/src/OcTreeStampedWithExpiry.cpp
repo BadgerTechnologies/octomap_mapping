@@ -1,4 +1,4 @@
-#include <ros/time.h>
+#include <ros/ros.h>
 #include <octomap_server/OcTreeStampedWithExpiry.h>
 
 namespace octomap_server {
@@ -6,7 +6,8 @@ namespace octomap_server {
 OcTreeStampedWithExpiry::OcTreeStampedWithExpiry(double resolution)
   : OccupancyOcTreeBase<OcTreeNodeStampedWithExpiry>(resolution)
   , a_coeff(1.0 / 50.0)
-  , c_coeff(15.0)
+  , c_coeff(2.0)
+  , c_coeff_free(60.0*60.0*24.0)
   , last_expire_time(0)
 {
   ocTreeStampedWithExpiryMemberInit.ensureLinking();
@@ -21,7 +22,22 @@ void OcTreeStampedWithExpiry::expireNodes()
 
   if (root != NULL)
   {
-    expireNodeRecurs(root);
+    ROS_INFO("prior to expiry, root expiry was: %ld.", root->getExpiry());
+    expire_count = 0;
+    if (expireNodeRecurs(root))
+    {
+      // The whole tree expired. This is odd but possible if no sensor data
+      // has been received. It is odd enough to log this.
+      ROS_WARN("Entire octree expired!");
+      delete root;
+      root = NULL;
+      expire_count++;
+    }
+    ROS_INFO("Expired %d nodes. Last expiry time is %ld.", expire_count, last_expire_time);
+    if (root)
+    {
+      ROS_INFO("Next node expires at %ld.", root->getExpiry());
+    }
   }
 }
 
@@ -33,7 +49,7 @@ bool OcTreeStampedWithExpiry::expireNodeRecurs(OcTreeNodeStampedWithExpiry* node
   // sure to update the inner nodes when necessary.
 
   // For now, only expire occupied nodes
-  if (isNodeOccupied(node))
+//  if (isNodeOccupied(node))
   {
     time_t expiry = node->getExpiry();
     // For inner nodes, expiry is the minimum of all child nodes expiry's.
@@ -54,6 +70,7 @@ bool OcTreeStampedWithExpiry::expireNodeRecurs(OcTreeNodeStampedWithExpiry* node
             {
               // Delete the child node
               deleteNodeChild(node, i);
+              expire_count++;
             }
           }
         }
@@ -77,13 +94,27 @@ bool OcTreeStampedWithExpiry::expireNodeRecurs(OcTreeNodeStampedWithExpiry* node
         // Leaf, update expiry if 0
         if (expiry == 0)
         {
-          expiry = node->getTimestamp() + c_coeff;
-          const float value = node->getLogOdds();
-          expiry += a_coeff_log_odds * value * value;
+          const double value = node->getLogOdds();
+          if (value < occ_prob_thres_log)
+          {
+            // free space
+            expiry = node->getTimestamp() + c_coeff_free;
+          }
+          else
+          {
+            // occupied space
+            expiry = node->getTimestamp() + c_coeff;
+            expiry += a_coeff_log_odds * value * value;
+          }
           node->setExpiry(expiry);
+          if (expiry <= last_expire_time)
+          {
+            ROS_WARN_THROTTLE(1.0, "newly added node immediately expired! (ts: %ld, expiry: %ld, value: %f)", node->getTimestamp(), expiry, value);
+          }
         }
         if (expiry <= last_expire_time)
         {
+          ROS_INFO_THROTTLE(1.0, "child node expired: value: %f expiry: %ld ts: %ld", node->getLogOdds(), expiry, node->getTimestamp());
           // We have expired!
           return true;
         }
@@ -94,12 +125,38 @@ bool OcTreeStampedWithExpiry::expireNodeRecurs(OcTreeNodeStampedWithExpiry* node
   return false;
 }
 
+OcTreeNodeStampedWithExpiry* OcTreeStampedWithExpiry::updateNode(const octomap::OcTreeKey& key, float log_odds_update, bool lazy_eval)
+{
+  // early abort (no change will happen).
+  // may cause an overhead in some configuration, but more often helps
+  OcTreeNodeStampedWithExpiry* leaf = this->search(key);
+  // no change: node already at threshold
+  if (leaf
+      && ((log_odds_update >= 0 && leaf->getLogOdds() >= this->clamping_thres_max)
+      || ( log_odds_update <= 0 && leaf->getLogOdds() <= this->clamping_thres_min))
+      && (leaf->getTimestamp() == getLastUpdateTime()))
+  {
+    return leaf;
+  }
+
+  bool createdRoot = false;
+  if (this->root == NULL) {
+    this->root = new OcTreeNodeStampedWithExpiry();
+    this->tree_size++;
+    createdRoot = true;
+  }
+
+  return OccupancyOcTreeBase<OcTreeNodeStampedWithExpiry>::updateNodeRecurs(this->root, createdRoot, key, 0, log_odds_update, lazy_eval);
+}
+
 void OcTreeStampedWithExpiry::updateNodeLogOdds(OcTreeNodeStampedWithExpiry* node, const float& update) const
 {
   // Update value based on expiry if present
   // This will rarely be present, only if we haven't seen this node recently
   time_t expiry = node->getExpiry();
-  // For now, only decay occupied nodes
+  // For now, only decay occupied nodes. Free ones have such a simple timeout
+  // mechanism that decaying the timeout prior to a miss is practically
+  // useless, so avoid the computational cost for free nodes.
   if (expiry != 0 && isNodeOccupied(node))
   {
     time_t orig_delta_t = expiry - node->getTimestamp();
@@ -124,10 +181,6 @@ void OcTreeStampedWithExpiry::updateNodeLogOdds(OcTreeNodeStampedWithExpiry* nod
   // sensor cycle. Instead, set it to zero and re-calculate it when it is
   // needed.
   node->setExpiry(0);
-}
-
-void OcTreeStampedWithExpiry::integrateMissNoTime(OcTreeNodeStampedWithExpiry* node) const{
-OccupancyOcTreeBase<OcTreeNodeStampedWithExpiry>::updateNodeLogOdds(node, prob_miss_log);
 }
 
 OcTreeStampedWithExpiry::StaticMemberInitializer OcTreeStampedWithExpiry::ocTreeStampedWithExpiryMemberInit;

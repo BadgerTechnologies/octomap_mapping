@@ -649,6 +649,12 @@ void OctomapServer::publishAll(const ros::Time& rostime){
   if (m_publishPeriod > 0.0 && rostime < m_publishLastTime + ros::Duration(m_publishPeriod)) {
     return;
   }
+  if (m_useTimedMap){
+    // If using a timed map, be sure all expiry's are up to date.
+    // The expiration may not be running in-sync
+    // Do this first, in the odd case that we expire all the nodes
+    m_octree->expireNodes();
+  }
   m_publishLastTime = rostime;
   ros::WallTime startTime = ros::WallTime::now();
   size_t octomapSize = m_octree->size();
@@ -658,11 +664,6 @@ void OctomapServer::publishAll(const ros::Time& rostime){
     return;
   }
 
-  if (m_useTimedMap){
-    // If using a timed map, be sure all expiry's are up to date.
-    // The expiration may not be running in-sync
-    m_octree->expireNodes();
-  }
   bool publishFreeMarkerArray = m_publishFreeSpace && (m_latchedTopics || m_fmarkerPub.getNumSubscribers() > 0);
   bool publishMarkerArray = (m_latchedTopics || m_markerPub.getNumSubscribers() > 0);
   bool publishPointCloud = (m_latchedTopics || m_pointCloudPub.getNumSubscribers() > 0);
