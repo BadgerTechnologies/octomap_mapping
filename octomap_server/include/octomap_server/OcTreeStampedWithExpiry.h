@@ -113,8 +113,12 @@ class OcTreeStampedWithExpiry : public octomap::OccupancyOcTreeBase <OcTreeNodeS
     // This function should be called periodically.
     void expireNodes();
 
+    virtual OcTreeNodeStampedWithExpiry* updateNode(const octomap::OcTreeKey& key, float log_odds_update, bool lazy_eval = false);
+    virtual OcTreeNodeStampedWithExpiry* updateNode(const octomap::OcTreeKey& key, bool occupied, bool lazy_eval = false) {
+      return updateNode(key, occupied ? prob_hit_log : prob_miss_log, lazy_eval);
+    }
+
     virtual void updateNodeLogOdds(OcTreeNodeStampedWithExpiry* node, const float& update) const;
-    void integrateMissNoTime(OcTreeNodeStampedWithExpiry* node) const;
 
     time_t getMaxExpiryDelta() const {
       return a_coeff_log_odds * clamping_thres_max * clamping_thres_max + c_coeff;
@@ -124,15 +128,18 @@ class OcTreeStampedWithExpiry : public octomap::OccupancyOcTreeBase <OcTreeNodeS
     // Quadratic delta-t expiration coefficients. The input is the number of
     // times a particular mode was marked from the default value (which would
     // be the curreng logodds divided prob_hit_log).
-    float a_coeff, a_coeff_log_odds;
+    double a_coeff, a_coeff_log_odds;
     // Assume b_coeff is always zero
-    float c_coeff;
+    double c_coeff;
+    // Assume free space we just use a flat timeout for
+    double c_coeff_free;
     // Used as the new value for updated nodes.
     // Only updated when calling expireNodes. This keeps our idea of time at
     // the resolution of our expiration rate check, which allows us to easily
     // prune nodes as their timestamps will only change when this time is
     // updated.
     time_t last_expire_time;
+    int expire_count;
 
     // Return true if this node has expired.
     // Assume node is valid.
