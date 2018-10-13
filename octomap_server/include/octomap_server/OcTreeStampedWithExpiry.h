@@ -131,6 +131,7 @@ class OcTreeStampedWithExpiry : public octomap::OccupancyOcTreeBase <OcTreeNodeS
     double a_coeff, a_coeff_log_odds;
     // Assume b_coeff is always zero
     double c_coeff;
+    double quadratic_start, quadratic_start_log_odds;
     // Assume free space we just use a flat timeout for
     double c_coeff_free;
     // Used as the new value for updated nodes.

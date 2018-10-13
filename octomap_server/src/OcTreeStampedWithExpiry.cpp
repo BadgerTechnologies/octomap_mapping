@@ -5,9 +5,10 @@ namespace octomap_server {
 
 OcTreeStampedWithExpiry::OcTreeStampedWithExpiry(double resolution)
   : OccupancyOcTreeBase<OcTreeNodeStampedWithExpiry>(resolution)
-  , a_coeff(1.0 / 50.0)
+  , a_coeff(1.0 / 25.0)
   , c_coeff(2.0)
-  , c_coeff_free(60.0*60.0*24.0)
+  , quadratic_start(30.0)
+  , c_coeff_free(60.0*60.0*18.0)
   , last_expire_time(0)
 {
   ocTreeStampedWithExpiryMemberInit.ensureLinking();
@@ -19,6 +20,7 @@ void OcTreeStampedWithExpiry::expireNodes()
 
   // pre-compute a_coeff in terms of log-odds instead of number of observations
   a_coeff_log_odds = a_coeff * (1.0 / prob_hit_log) * (1.0 / prob_hit_log);
+  quadratic_start_log_odds = quadratic_start * prob_hit_log;
 
   if (root != NULL)
   {
@@ -104,17 +106,23 @@ bool OcTreeStampedWithExpiry::expireNodeRecurs(OcTreeNodeStampedWithExpiry* node
           {
             // occupied space
             expiry = node->getTimestamp() + c_coeff;
-            expiry += a_coeff_log_odds * value * value;
+            const double v = (value - quadratic_start_log_odds);
+            if (v > 0.0)
+            {
+              expiry += a_coeff_log_odds * v * v;
+            }
           }
           node->setExpiry(expiry);
+          /*
           if (expiry <= last_expire_time)
           {
             ROS_WARN_THROTTLE(1.0, "newly added node immediately expired! (ts: %ld, expiry: %ld, value: %f)", node->getTimestamp(), expiry, value);
           }
+          */
         }
         if (expiry <= last_expire_time)
         {
-          ROS_INFO_THROTTLE(1.0, "child node expired: value: %f expiry: %ld ts: %ld", node->getLogOdds(), expiry, node->getTimestamp());
+          //ROS_INFO_THROTTLE(1.0, "child node expired: value: %f expiry: %ld ts: %ld", node->getLogOdds(), expiry, node->getTimestamp());
           // We have expired!
           return true;
         }
