@@ -492,7 +492,12 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   // instead of direct scan insertion, compute update to filter ground:
   static SensorUpdateKeyMap update_cells;
   update_cells.clear();
-  update_cells.setFloorTruncation(m_octree->coordToKey(0.0));
+  bool floor_truncation_ = true;
+  double floor_truncation_z_ = 0.0;
+  if (floor_truncation_)
+  {
+    update_cells.setFloorTruncation(m_octree->coordToKey(floor_truncation_z_));
+  }
   // insert ground points only as free:
   for (PCLPointCloud::const_iterator it = ground.begin(); it != ground.end(); ++it){
     point3d point(it->x, it->y, it->z);
@@ -540,8 +545,31 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
           }
         }
 
+        const unsigned int fuzz_cnt = 4;
+        point3d fuzz_point = point;
+        point3d direction = (point - sensorOrigin);
+        // only fuzz in x/y.
+        // This can't work around the edges of the FOV as we won't clear
+        // these! Just fuzz in the correct direction for further.
+//        direction.z() = 0.0;
+        direction.normalize();
+        const double fuzz_amt = 0.5 * 1.414 * m_octree->getResolution();
+        const point3d fuzz_vector = direction * fuzz_amt;
+        for (unsigned int fuzz=0; fuzz<fuzz_cnt; ++fuzz)
+        {
+          // fuzz
+          fuzz_point += fuzz_vector;
+          if (floor_truncation_ && fuzz_point.z() < floor_truncation_z_) {
+            break;
+          }
+          if (m_octree->coordToKeyChecked(fuzz_point, key)){
+            update_cells.insertOccupied(key);
+          }
+        }
+
         updateMinKey(key, m_updateBBXMin);
         updateMaxKey(key, m_updateBBXMax);
+
 
 #ifdef COLOR_OCTOMAP_SERVER // NB: Only read and interpret color if it's an occupied node
         const int rgb = *reinterpret_cast<const int*>(&(it->rgb)); // TODO: there are other ways to encode color than this one
@@ -552,6 +580,8 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
 #endif
       }
 
+      // fuzz
+      point -= (point - sensorOrigin).normalized() * 2 * 1.414 * m_octree->getResolution();
       // free cells
       update_cells.insertFreeRay(sensorOrigin, point,
                                  originKey,
@@ -749,18 +779,57 @@ void OctomapServer::publishAll(const ros::Time& rostime){
             time_t expiry = it->getExpiry();
             time_t max_expiry_delta = m_octree->getMaxExpiryDelta();
             time_t now = m_octree->getLastUpdateTime();
-            double d;
+            std_msgs::ColorRGBA color;
+            color.a = 1.0;
+            color.r = 0.0;
+            color.g = 0.0;
+            color.b = 0.0;
             if ( expiry < now ) {
-              d = 0;
+              // doesn't make sense, so highlight pale yellow.
+              color.r = 1.0;
+              color.g = 1.0;
+              color.b = 0.7;
             } else {
+              double d;
+              double d_max = static_cast<double>(max_expiry_delta);
               d = (expiry - now);
-              d /= static_cast<double>(max_expiry_delta);
-              d = sqrt(d);
-              d *= m_colorFactor;
+              if(d <= 60.0) {
+                d = sqrt(d) / sqrt(60.0);
+                color.r = 1.0;
+                color.g = d;
+              } else if(d <= 3600.0) {
+                d = sqrt(d-60.0) / sqrt(3600.0-60.0);
+                color.r = 1.0 - d;
+                color.g = 1.0;
+              } else if(d <= 4.0 * 3600.0) {
+                d = sqrt(d-3600.0) / sqrt(3.0 * 3600.0);
+                color.g = 1.0;
+                color.b = d;
+              } else if(d <= 16.0 * 3600.0) {
+                d = sqrt(d-4.0*3600.0) / sqrt(12.0 * 3600.0);
+                color.g = 1.0 - d;
+                color.b = 1.0;
+              } else if(d <= d_max) {
+                double d_max = static_cast<double>(max_expiry_delta);
+                d -= 16.0*3600.0;
+                d_max -= 16.0*3600.0;
+                color.b = 1.0;
+                color.r = d / d_max;
+              } else {
+                // doesn't make sense, highlight lilac
+                color.r = 1.0;
+                color.g = 0.7;
+                color.b = 1.0;
+              }
+
+//              d /= static_cast<double>(max_expiry_delta);
+//              d = sqrt(d);
+//              d *= m_colorFactor;
             }
             // use the same color maping as the height map using our
             // normalized and linearized expiration scale
-            occupiedNodesVis.markers[idx].colors.push_back(heightMapColor(d));
+//            occupiedNodesVis.markers[idx].colors.push_back(heightMapColor(d));
+            occupiedNodesVis.markers[idx].colors.push_back(color);
           }
 
 #ifdef COLOR_OCTOMAP_SERVER
