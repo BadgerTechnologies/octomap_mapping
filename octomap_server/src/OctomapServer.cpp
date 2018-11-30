@@ -29,6 +29,9 @@
 
 #include <octomap_server/OctomapServer.h>
 #include <octomap_server/SensorUpdateKeyMap.h>
+#include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
+#include <std_srvs/SetBool.h>
 
 using namespace octomap;
 using octomap_msgs::Octomap;
@@ -75,6 +78,19 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_compressLastTime(ros::Time::now()),
   m_incrementalUpdate(false),
   m_initConfig(true),
+  m_publishMotionCount(false),
+  m_motionCountNumer(0),
+  m_motionCountDenom(0),
+  m_motionCountRadius(0.0),
+  m_motionCountMinLogOdds(0.0),
+  m_motionCountMaxLogOdds(0.0),
+  m_motionCountThreshold(0.05),
+  m_motionCountAlpha(0.01),
+  m_motionCountMinOccupancyAverage(0.01),
+  m_motionCountMaxOccupancyAverage(0.99),
+  m_motionCountVarianceThreshold(0.01),
+  m_motionCountMinActiveTime(ros::Duration(5.0)),
+  m_motionCountLastActiveTime(ros::Time(0.0)),
   m_expirePeriod(0.0),
   m_expireLastTime(ros::Time::now())
 {
@@ -124,6 +140,21 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   private_nh.param("compress_map", m_compressMap, m_compressMap);
   private_nh.param("compress_period", m_compressPeriod, m_compressPeriod);
   private_nh.param("incremental_2D_projection", m_incrementalUpdate, m_incrementalUpdate);
+
+  private_nh.param("motion_count/radius", m_motionCountRadius, m_motionCountRadius);
+  double temp;
+  private_nh.param("motion_count/min_probability", temp, 0.5);
+  m_motionCountMinLogOdds = octomap::logodds(temp);
+  private_nh.param("motion_count/max_probability", temp, 0.5);
+  m_motionCountMaxLogOdds = octomap::logodds(temp);
+  private_nh.param("motion_count/threshold", m_motionCountThreshold, m_motionCountThreshold);
+  private_nh.param("motion_count/alpha", m_motionCountAlpha, m_motionCountAlpha);
+  private_nh.param("motion_count/min_occupancy_average", m_motionCountMinOccupancyAverage, m_motionCountMinOccupancyAverage);
+  private_nh.param("motion_count/max_occupancy_average", m_motionCountMaxOccupancyAverage, m_motionCountMaxOccupancyAverage);
+  private_nh.param("motion_count/variance_threshold", m_motionCountVarianceThreshold, m_motionCountVarianceThreshold);
+  if (private_nh.getParam("motion_count/min_active_time", temp)) {
+    m_motionCountMinActiveTime = ros::Duration(temp);
+  }
 
   // only enabled when expireTimeDelta is positive
   private_nh.param("expire_time_delta", m_expirePeriod, m_expirePeriod);
@@ -205,6 +236,8 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_pointCloudPub = m_nh.advertise<sensor_msgs::PointCloud2>("octomap_point_cloud_centers", 1, m_latchedTopics);
   m_mapPub = m_nh.advertise<nav_msgs::OccupancyGrid>("projected_map", 5, m_latchedTopics);
   m_fmarkerPub = m_nh.advertise<visualization_msgs::MarkerArray>("free_cells_vis_array", 1, m_latchedTopics);
+  m_motionCountPub = m_nh.advertise<std_msgs::Float64>("motion_count", 1, false);
+  m_motionPub = m_nh.advertise<std_msgs::Bool>("motion", 1, false);
 
   // Already segmented topics
   if (segmented_topics.getType() == XmlRpc::XmlRpcValue::TypeArray) {
@@ -764,6 +797,41 @@ void OctomapServer::publishAll(const ros::Time& rostime){
   // call pre-traversal hook:
   handlePreNodeTraversal(rostime);
 
+  m_publishMotionCount = false;
+  double base_x = 0.0;
+  double base_y = 0.0;
+  if (publish_2d && m_motionCountRadius > 0.0)
+  {
+    m_octree->setEMAAlpha(m_motionCountAlpha);
+    // find x, y of base right now
+    try{
+      tf::StampedTransform baseToWorldTf;
+      m_tfListener.waitForTransform(m_worldFrameId, m_baseFrameId, rostime, ros::Duration(0.2));
+      geometry_msgs::PoseStamped pose_in, pose_out;
+      pose_in.header.stamp = rostime;
+      pose_in.header.frame_id = m_baseFrameId;
+      pose_in.pose.position.x = 0;
+      pose_in.pose.position.y = 0;
+      pose_in.pose.position.z = 0;
+      pose_in.pose.orientation.x = 0;
+      pose_in.pose.orientation.y = 0;
+      pose_in.pose.orientation.z = 0;
+      pose_in.pose.orientation.w = 1;
+      m_tfListener.transformPose(m_worldFrameId, pose_in, pose_out);
+      // For now, assume a circular radius, and that the z-limits are the same
+      // as the underlying map. Therefore, orientation of the base does not matter.
+      base_x = pose_out.pose.position.x;
+      base_y = pose_out.pose.position.y;
+      m_motionCountNumer = 0;
+      m_motionCountDenom = 0;
+      m_publishMotionCount = true;
+      ROS_INFO_THROTTLE(1.0, "base_x: %f, base_y: %f", base_x, base_y);
+    }catch(tf::TransformException& ex){
+      ROS_ERROR_STREAM_THROTTLE(60.0, "Transform error for motion counter: " << ex.what() << ".\n"
+                        "You need to set the base_frame_id or set motion_count/radius to zero.");
+    }
+  }
+
   // now, traverse all leafs in the tree:
   for (OcTreeT::iterator it = m_octree->begin(m_maxTreeDepth),
       end = m_octree->end(); it != end; ++it)
@@ -774,6 +842,53 @@ void OctomapServer::publishAll(const ros::Time& rostime){
     handleNode(it);
     if (inUpdateBBX)
       handleNodeInBBX(it);
+
+    if (m_publishMotionCount)
+    {
+      const double delta_x = it.getX() - base_x;
+      const double delta_y = it.getY() - base_y;
+      const double d_squared = delta_x * delta_x + delta_y * delta_y;
+      const double r_squared = m_motionCountRadius * m_motionCountRadius;
+      if (d_squared < r_squared)
+      {
+        // if we are using a timed map, limit to only those voxels we have
+        // been actively observing
+        if (!m_useTimedMap || it->getTimestamp() >= m_octree->getLastUpdateTime()-1)
+        {
+          const double log_odds = it->getLogOdds();
+          m_motionCountDenom++;
+          // if log_odds within boundaries
+//          if (log_odds >= m_motionCountMinLogOdds && log_odds <= m_motionCountMaxLogOdds)
+          {
+            const double ema = it->getAverage();
+            if (ema == 0.0)
+            {
+              ROS_INFO_THROTTLE(.498, "ema zero");
+            }
+            else if (ema == 1.0)
+            {
+              ROS_INFO_THROTTLE(.498, "ema one");
+            }
+            else
+            {
+              ROS_INFO_THROTTLE(.498, "ema: %f", ema);
+            }
+            // and if occupancy average is within boundaries
+//            if (ema >= m_motionCountMinOccupancyAverage && ema <= m_motionCountMaxOccupancyAverage)
+            {
+              const double emvar = it->getVariance();
+              ROS_INFO_THROTTLE(.499, "emvar: %f", emvar);
+              // and if occupancy variance is above threshold
+              if (emvar >= m_motionCountVarianceThreshold)
+              {
+                // count as in-motion
+                m_motionCountNumer++;
+              }
+            }
+          }
+        }
+      }
+    }
 
     if (m_octree->isNodeOccupied(*it)){
       double z = it.getZ();
@@ -1348,6 +1463,34 @@ void OctomapServer::handlePostNodeTraversal(const ros::Time& rostime){
 
   if (m_publish2DMap)
     m_mapPub.publish(m_gridmap);
+
+  if (m_publishMotionCount) {
+    double pub = 0.0;
+    if (m_motionCountDenom != 0.0) {
+      pub = m_motionCountNumer;
+      pub /= m_motionCountDenom;
+    }
+    m_motionCountPub.publish(pub);
+    bool in_motion;
+    if (pub >= m_motionCountThreshold)
+    {
+      in_motion = true;
+      m_motionCountLastActiveTime = rostime;
+    }
+    else if(m_motionCountLastActiveTime + m_motionCountMinActiveTime > rostime)
+    {
+      // keep it active until min active time passes
+      in_motion = true;
+    }
+    else
+    {
+      in_motion = false;
+    }
+    m_motionPub.publish(in_motion);
+    std_srvs::SetBool srv;
+    srv.request.data = in_motion;
+    ros::service::call("/lights_and_sound/hazard", srv);
+  }
 }
 
 void OctomapServer::handleOccupiedNode(const OcTreeT::iterator& it){
