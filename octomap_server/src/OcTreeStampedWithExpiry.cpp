@@ -10,6 +10,7 @@ OcTreeStampedWithExpiry::OcTreeStampedWithExpiry(double resolution)
   , quadratic_start(30.0)
   , c_coeff_free(60.0*60.0*18.0)
   , last_expire_time(0)
+  , ema_alpha(0.01)
 {
   ocTreeStampedWithExpiryMemberInit.ensureLinking();
 }
@@ -182,6 +183,19 @@ void OcTreeStampedWithExpiry::updateNodeLogOdds(OcTreeNodeStampedWithExpiry* nod
       node->setLogOdds(occ_prob_thres_log + logodds_delta * decay_factor);
     }
   }
+
+  // Update EMA
+  float x_i;
+  if (update > 0.0)
+  {
+    x_i = 1.0;
+  }
+  else
+  {
+    x_i = 0.0;
+  }
+  node->updateEMA(x_i, ema_alpha);
+
   OccupancyOcTreeBase<OcTreeNodeStampedWithExpiry>::updateNodeLogOdds(node, update);
   node->setTimestamp(last_expire_time);
   // Because we will very likely observe the same space multiple times, we do

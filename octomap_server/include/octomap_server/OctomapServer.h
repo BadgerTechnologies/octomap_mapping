@@ -382,6 +382,23 @@ protected:
   bool m_projectCompleteMap;
   bool m_useColoredMap;
 
+  // space-based motion count
+  ros::Publisher m_motionCountPub;
+  ros::Publisher m_motionPub;
+  bool m_publishMotionCount;
+  unsigned int m_motionCountNumer;
+  unsigned int m_motionCountDenom;
+  double m_motionCountRadius;
+  double m_motionCountMinLogOdds;
+  double m_motionCountMaxLogOdds;
+  double m_motionCountThreshold;
+  double m_motionCountAlpha;
+  double m_motionCountMinOccupancyAverage;
+  double m_motionCountMaxOccupancyAverage;
+  double m_motionCountVarianceThreshold;
+  ros::Duration m_motionCountMinActiveTime;
+  ros::Time m_motionCountLastActiveTime;
+
   // time-based degrading
   double m_expirePeriod;
   ros::Time m_expireLastTime;
