@@ -1576,8 +1576,12 @@ void OctomapServer::handlePostNodeTraversal(const ros::Time& rostime){
 #else
     pub = m_motionCountNumer * m_res * m_res * m_res;
 #endif
-    m_motionCountNumVoxelsPub.publish(m_motionCountDenom);
-    m_motionCountPub.publish(pub);
+    std_msgs::UInt64 num_voxels_msg;
+    std_msgs::Float64 motion_count_msg;
+    num_voxels_msg.data = m_motionCountDenom;
+    m_motionCountNumVoxelsPub.publish(num_voxels_msg);
+    motion_count_msg.data = pub;
+    m_motionCountPub.publish(motion_count_msg);
     bool in_motion;
     if (pub >= m_motionCountThreshold || m_motionCountDenom < m_motionCountMinDenom)
     {
@@ -1593,7 +1597,9 @@ void OctomapServer::handlePostNodeTraversal(const ros::Time& rostime){
     {
       in_motion = false;
     }
-    m_motionPub.publish(in_motion);
+    std_msgs::Bool in_motion_msg;
+    in_motion_msg.data = in_motion;
+    m_motionPub.publish(in_motion_msg);
     std_srvs::SetBool srv;
     srv.request.data = in_motion;
     ros::service::call("/lights_and_sound/hazard", srv);
