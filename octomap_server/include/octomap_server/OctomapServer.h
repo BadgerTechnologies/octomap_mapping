@@ -253,6 +253,9 @@ protected:
   /// label the input cloud "pc" into ground and nonground. Should be in the robot's fixed frame (not world!)
   void filterGroundPlane(const PCLPointCloud& pc, PCLPointCloud& ground, PCLPointCloud& nonground) const;
 
+  bool isMotionNode(const OcTreeT::NodeType* node) const;
+  bool isMotionSpeckleNode(const octomap::OcTreeKey& key) const;
+
   /**
   * @brief Find speckle nodes (single occupied voxels with no neighbors). Only works on lowest resolution!
   * @param key
@@ -344,6 +347,8 @@ protected:
   ros::Time m_publishLastTime;
   double m_publish2DPeriod;
   ros::Time m_publish2DLastTime;
+  double m_publishMotionCountPeriod;
+  ros::Time m_publishMotionCountLastTime;
 
   double m_res;
   unsigned m_treeDepth;
@@ -384,10 +389,12 @@ protected:
 
   // space-based motion count
   ros::Publisher m_motionCountPub;
+  ros::Publisher m_motionCountNumVoxelsPub;
   ros::Publisher m_motionPub;
   bool m_publishMotionCount;
-  unsigned int m_motionCountNumer;
-  unsigned int m_motionCountDenom;
+  uint64_t m_motionCountNumer;
+  uint64_t m_motionCountDenom;
+  int m_motionCountMinDenom;
   double m_motionCountRadius;
   double m_motionCountMinLogOdds;
   double m_motionCountMaxLogOdds;

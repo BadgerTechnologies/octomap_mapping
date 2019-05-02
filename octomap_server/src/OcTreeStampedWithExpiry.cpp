@@ -176,6 +176,7 @@ void OcTreeStampedWithExpiry::updateNodeLogOdds(OcTreeNodeStampedWithExpiry* nod
     {
       // Its already expired, set it back to the background value prior to update
       node->setLogOdds(occ_prob_thres_log);
+      node->resetAverage();
     }
     else
     {

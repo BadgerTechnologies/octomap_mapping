@@ -96,6 +96,7 @@ class OcTreeNodeStampedWithExpiry : public octomap::OcTreeNode
 
     // Get average occupancy. 1.0 is occupied, 0.0 is free.
     float getAverage() const {return ema;}
+    void resetAverage() {ema = -1.0;}
 
     // Get occupancy variance.
     float getVariance() const {return emvar;}
@@ -113,8 +114,29 @@ class OcTreeNodeStampedWithExpiry : public octomap::OcTreeNode
       {
         const float delta = x_i - ema;
         ema += ema_alpha * delta;
+#if 0
         emvar = (1.0 - ema_alpha) * emvar + ema_alpha * delta * delta;
         ROS_INFO_THROTTLE(1.0, "updateEMA: x_i: %f ema_alpha: %f delta: %f ema: %f, emvar: %f", x_i, ema_alpha, delta, ema, emvar);
+        if (x_i > 0)
+        {
+          ema += ema_alpha;
+          if (ema > 1.0) ema = 1.0;
+        }
+        else
+        {
+          ema -= ema_alpha;
+          if (ema < 0.0) ema = 0.0;
+        }
+#endif
+        // clamp ema so we can prune tree and also take the quick way in updateNode
+        if (ema < .001)
+        {
+          ema = 0.0;
+        }
+        else if (ema > .999)
+        {
+          ema = 1.0;
+        }
       }
     }
 

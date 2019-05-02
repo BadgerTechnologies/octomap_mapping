@@ -29,6 +29,7 @@
 
 #include <octomap_server/OctomapServer.h>
 #include <octomap_server/SensorUpdateKeyMap.h>
+#include <std_msgs/UInt64.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Bool.h>
 #include <std_srvs/SetBool.h>
@@ -56,9 +57,11 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_latchedTopics(true),
   m_publishFreeSpace(false),
   m_publishPeriod(0.0),
-  m_publish2DPeriod(0.0),
   m_publishLastTime(ros::Time::now()),
+  m_publish2DPeriod(0.0),
   m_publish2DLastTime(ros::Time::now()),
+  m_publishMotionCountPeriod(0.0),
+  m_publishMotionCountLastTime(ros::Time::now()),
   m_res(0.05),
   m_treeDepth(0),
   m_maxTreeDepth(0),
@@ -81,6 +84,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_publishMotionCount(false),
   m_motionCountNumer(0),
   m_motionCountDenom(0),
+  m_motionCountMinDenom(0),
   m_motionCountRadius(0.0),
   m_motionCountMinLogOdds(0.0),
   m_motionCountMaxLogOdds(0.0),
@@ -141,6 +145,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   private_nh.param("compress_period", m_compressPeriod, m_compressPeriod);
   private_nh.param("incremental_2D_projection", m_incrementalUpdate, m_incrementalUpdate);
 
+  private_nh.param("motion_count/min_voxels", m_motionCountMinDenom, m_motionCountMinDenom);
   private_nh.param("motion_count/radius", m_motionCountRadius, m_motionCountRadius);
   double temp;
   private_nh.param("motion_count/min_probability", temp, 0.5);
@@ -223,6 +228,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   private_nh.param("publish_free_space", m_publishFreeSpace, m_publishFreeSpace);
   private_nh.param("publish_period", m_publishPeriod, m_publishPeriod);
   private_nh.param("publish_2d_period", m_publish2DPeriod, m_publish2DPeriod);
+  private_nh.param("publish_motion_count_period", m_publishMotionCountPeriod, m_publishMotionCountPeriod);
 
   private_nh.param("latch", m_latchedTopics, m_latchedTopics);
   if (m_latchedTopics){
@@ -237,6 +243,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_mapPub = m_nh.advertise<nav_msgs::OccupancyGrid>("projected_map", 5, m_latchedTopics);
   m_fmarkerPub = m_nh.advertise<visualization_msgs::MarkerArray>("free_cells_vis_array", 1, m_latchedTopics);
   m_motionCountPub = m_nh.advertise<std_msgs::Float64>("motion_count", 1, false);
+  m_motionCountNumVoxelsPub = m_nh.advertise<std_msgs::UInt64>("motion_count_num_voxels", 1, false);
   m_motionPub = m_nh.advertise<std_msgs::Bool>("motion", 1, false);
 
   // Already segmented topics
@@ -700,6 +707,15 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
       }
     }
   }
+
+  bool size_changed = m_octree->getSizeChanged();
+  double minX, minY, minZ, maxX, maxY, maxZ;
+  if (!size_changed)
+  {
+    m_octree->getMetricMin(minX, minY, minZ);
+    m_octree->getMetricMax(maxX, maxY, maxZ);
+  }
+
   // now update all cells per the accumulated update
   for (SensorUpdateKeyMap::iterator it = update_cells.begin(), end=update_cells.end(); it!= end; it++) {
     m_octree->updateNode(it->key, it->value);
@@ -728,6 +744,21 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   maxPt = m_octree->keyToCoord(m_updateBBXMax);
   ROS_DEBUG_STREAM("Updated area bounding box: "<< minPt << " - "<<maxPt);
   ROS_DEBUG_STREAM("Bounding box keys (after): " << m_updateBBXMin[0] << " " <<m_updateBBXMin[1] << " " << m_updateBBXMin[2] << " / " <<m_updateBBXMax[0] << " "<<m_updateBBXMax[1] << " "<< m_updateBBXMax[2]);
+
+  if (!size_changed && m_octree->getSizeChanged())
+  {
+    if (minPt.x() >= minX && minPt.y() >= minY && minPt.z() >= minZ &&
+        maxPt.x() <= maxX && maxPt.y() <= maxY && maxPt.z() <= maxZ)
+    {
+      // the update is within the bounds, the extents did not change
+      size_changed = false;
+      ROS_INFO_THROTTLE(1.0, "update within bounds, extents did not change");
+    }
+    else
+    {
+      ROS_INFO_THROTTLE(1.0, "update out-of-bounds, re-calculate extents");
+    }
+  }
 
   // Prune map if past period
   bool pruned = false;
@@ -766,19 +797,24 @@ void OctomapServer::publishAll(const ros::Time& rostime){
   bool publish_all = true;
   bool publish_3d = true;
   bool publish_2d = true;
+  bool publish_motion_count = true;
   if (m_publishPeriod > 0.0 && rostime < m_publishLastTime + ros::Duration(m_publishPeriod)) {
     publish_all = false;
   }
   if (m_publish2DPeriod > 0.0 && rostime < m_publish2DLastTime + ros::Duration(m_publish2DPeriod)) {
     publish_2d = false;
   }
+  if (m_publishMotionCountPeriod > 0.0 && rostime < m_publishMotionCountLastTime + ros::Duration(m_publishMotionCountPeriod)) {
+    publish_motion_count = false;
+  }
   // Publishing 3D topics follows publishing all
   publish_3d = publish_all;
   if (publish_all)
   {
     publish_2d = true;
+    publish_motion_count = true;
   }
-  if (!publish_2d && !publish_3d)
+  if (!publish_2d && !publish_3d && !publish_motion_count)
   {
     // there is nothing to do.
     return;
@@ -797,6 +833,9 @@ void OctomapServer::publishAll(const ros::Time& rostime){
   if (publish_2d) {
     m_publish2DLastTime = rostime;
   }
+  if (publish_motion_count) {
+    m_publishMotionCountLastTime = rostime;
+  }
 
   ros::WallTime startTime = ros::WallTime::now();
   size_t octomapSize = m_octree->size();
@@ -812,6 +851,7 @@ void OctomapServer::publishAll(const ros::Time& rostime){
   bool publishBinaryMap = (m_latchedTopics || m_binaryMapPub.getNumSubscribers() > 0);
   bool publishFullMap = (m_latchedTopics || m_fullMapPub.getNumSubscribers() > 0);
   m_publish2DMap = (m_latchedTopics || m_mapPub.getNumSubscribers() > 0);
+  bool publishMotionCount = (m_latchedTopics || m_motionCountPub.getNumSubscribers() > 0);
 
   // Update above based on publish period booleans set above.
   if (!publish_3d)
@@ -825,6 +865,10 @@ void OctomapServer::publishAll(const ros::Time& rostime){
   if (!publish_2d)
   {
     m_publish2DMap = false;
+  }
+  if (!publish_motion_count)
+  {
+    publishMotionCount = false;
   }
 
   // init markers for free space:
@@ -849,7 +893,7 @@ void OctomapServer::publishAll(const ros::Time& rostime){
   m_publishMotionCount = false;
   double base_x = 0.0;
   double base_y = 0.0;
-  if (publish_2d && m_motionCountRadius > 0.0)
+  if (publishMotionCount && m_motionCountRadius > 0.0)
   {
     m_octree->setEMAAlpha(m_motionCountAlpha);
     // find x, y of base right now
@@ -881,6 +925,15 @@ void OctomapServer::publishAll(const ros::Time& rostime){
     }
   }
 
+  // only traverse the entire octomap if necessary
+  if (publishFreeMarkerArray ||
+    publishMarkerArray ||
+    publishPointCloud ||
+    publishBinaryMap ||
+    publishFullMap ||
+    m_publish2DMap)
+  {
+
   // now, traverse all leafs in the tree:
   for (OcTreeT::iterator it = m_octree->begin(m_maxTreeDepth),
       end = m_octree->end(); it != end; ++it)
@@ -891,53 +944,6 @@ void OctomapServer::publishAll(const ros::Time& rostime){
     handleNode(it);
     if (inUpdateBBX)
       handleNodeInBBX(it);
-
-    if (m_publishMotionCount)
-    {
-      const double delta_x = it.getX() - base_x;
-      const double delta_y = it.getY() - base_y;
-      const double d_squared = delta_x * delta_x + delta_y * delta_y;
-      const double r_squared = m_motionCountRadius * m_motionCountRadius;
-      if (d_squared < r_squared)
-      {
-        // if we are using a timed map, limit to only those voxels we have
-        // been actively observing
-        if (!m_useTimedMap || it->getTimestamp() >= m_octree->getLastUpdateTime()-1)
-        {
-          const double log_odds = it->getLogOdds();
-          m_motionCountDenom++;
-          // if log_odds within boundaries
-//          if (log_odds >= m_motionCountMinLogOdds && log_odds <= m_motionCountMaxLogOdds)
-          {
-            const double ema = it->getAverage();
-            if (ema == 0.0)
-            {
-              ROS_INFO_THROTTLE(.498, "ema zero");
-            }
-            else if (ema == 1.0)
-            {
-              ROS_INFO_THROTTLE(.498, "ema one");
-            }
-            else
-            {
-              ROS_INFO_THROTTLE(.498, "ema: %f", ema);
-            }
-            // and if occupancy average is within boundaries
-//            if (ema >= m_motionCountMinOccupancyAverage && ema <= m_motionCountMaxOccupancyAverage)
-            {
-              const double emvar = it->getVariance();
-              ROS_INFO_THROTTLE(.499, "emvar: %f", emvar);
-              // and if occupancy variance is above threshold
-              if (emvar >= m_motionCountVarianceThreshold)
-              {
-                // count as in-motion
-                m_motionCountNumer++;
-              }
-            }
-          }
-        }
-      }
-    }
 
     if (m_octree->isNodeOccupied(*it)){
       double z = it.getZ();
@@ -1089,6 +1095,53 @@ void OctomapServer::publishAll(const ros::Time& rostime){
 
       }
     }
+  }
+
+  }
+
+  if (m_publishMotionCount)
+  {
+    uint64_t motion_speckles=0;
+    // Search the tree, pruning areas that can not have any voxels in the motion
+    // area. Optimizing the search like this allows frequent motion detection on
+    // small areas of large maps.
+    octomap::point3d min(base_x - m_motionCountRadius, base_y - m_motionCountRadius, m_pointcloudMinZ);
+    octomap::point3d max(base_x + m_motionCountRadius, base_y + m_motionCountRadius, m_pointcloudMaxZ);
+
+    for (OcTreeT::leaf_bbx_iterator it = m_octree->begin_leafs_bbx(min, max),
+        end = m_octree->end_leafs_bbx(); it != end; ++it)
+    {
+      const double delta_x = it.getX() - base_x;
+      const double delta_y = it.getY() - base_y;
+      const double d_squared = delta_x * delta_x + delta_y * delta_y;
+      const double r_squared = m_motionCountRadius * m_motionCountRadius;
+      if (d_squared < r_squared)
+      {
+        // Be sure to count pruned leaves for what they are worth spatially.
+        // Note that this is quantized so if a large node fell inside our
+        // boundary we are going to count all of it. In practice, such large
+        // nodes are rare. If it became an issue, the user of the tree could
+        // just disable pruning and rely only on expiry.
+        const uint64_t node_value = (1ULL << (3*(m_treeDepth - it.getDepth())));
+        m_motionCountDenom += node_value;
+
+        if (isMotionNode(&(*it)))
+        {
+          // Ignore isolated motion "speckles"
+          // These happen all the time near perception boundaries
+          if (node_value == 1 && isMotionSpeckleNode(it.getKey()))
+          {
+            motion_speckles += node_value;
+          }
+          else
+          {
+            // count as in-motion
+            m_motionCountNumer += node_value;
+          }
+        }
+      }
+    }
+    ROS_INFO_THROTTLE(1.0, "Motion speckles this go: %lu", motion_speckles);
   }
 
   // call post-traversal hook:
@@ -1515,13 +1568,18 @@ void OctomapServer::handlePostNodeTraversal(const ros::Time& rostime){
 
   if (m_publishMotionCount) {
     double pub = 0.0;
+#if 0
     if (m_motionCountDenom != 0.0) {
       pub = m_motionCountNumer;
       pub /= m_motionCountDenom;
     }
+#else
+    pub = m_motionCountNumer * m_res * m_res * m_res;
+#endif
+    m_motionCountNumVoxelsPub.publish(m_motionCountDenom);
     m_motionCountPub.publish(pub);
     bool in_motion;
-    if (pub >= m_motionCountThreshold)
+    if (pub >= m_motionCountThreshold || m_motionCountDenom < m_motionCountMinDenom)
     {
       in_motion = true;
       m_motionCountLastActiveTime = rostime;
@@ -1601,7 +1659,99 @@ void OctomapServer::update2DMap(const OcTreeT::iterator& it, bool occupied){
 
 }
 
+bool OctomapServer::isMotionNode(const OcTreeT::NodeType* node) const
+{
+  // if we are using a timed map, limit to only those voxels we have
+  // been actively observing
+  if (!m_useTimedMap || node->getTimestamp() >= m_octree->getLastUpdateTime()-2)
+  {
+#if 0
+    const double log_odds = node->getLogOdds();
+    // if log_odds within boundaries
+    if (log_odds >= m_motionCountMinLogOdds && log_odds <= m_motionCountMaxLogOdds)
+#endif
+    {
+      const double ema = node->getAverage();
+#if 0
+      if (ema == 0.0)
+      {
+        ROS_INFO_THROTTLE(.498, "ema zero");
+      }
+      else if (ema == 1.0)
+      {
+        ROS_INFO_THROTTLE(.498, "ema one");
+      }
+      else
+      {
+        ROS_INFO_THROTTLE(.498, "ema: %f", ema);
+      }
+#endif
+      // and if occupancy average is within boundaries
+      if (ema >= m_motionCountMinOccupancyAverage && ema <= m_motionCountMaxOccupancyAverage)
+      {
+#if 0
+        const double emvar = node->getVariance();
+        ROS_INFO_THROTTLE(.499, "emvar: %f", emvar);
+        // and if occupancy variance is above threshold
+        if (emvar >= m_motionCountVarianceThreshold)
+#endif
+        {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 
+bool OctomapServer::isMotionSpeckleNode(const OcTreeKey&nKey) const {
+  OcTreeKey key;
+#if 0
+  for (key[2] = nKey[2] - 1; key[2] <= nKey[2] + 1; ++key[2]){
+    for (key[1] = nKey[1] - 1; key[1] <= nKey[1] + 1; ++key[1]){
+      for (key[0] = nKey[0] - 1; key[0] <= nKey[0] + 1; ++key[0]){
+        if (key != nKey){
+          const OcTreeT::NodeType* node = dynamic_cast<const OcTreeT::NodeType*>(m_octree->search(key));
+          if (node && isMotionNode(node)){
+            // we have a neighbor => not a speckle
+            return false;
+          }
+        }
+      }
+    }
+  }
+#else
+  // just consider 6-way connected
+  // The above considers 26-way
+  key[0]=nKey[0];
+  key[1]=nKey[1];
+  for (key[2] = nKey[2] - 1; key[2] <= nKey[2] + 1; key[2]+=2){
+    const OcTreeT::NodeType* node = dynamic_cast<const OcTreeT::NodeType*>(m_octree->search(key));
+    if (node && isMotionNode(node)){
+      // we have a neighbor => not a speckle
+      return false;
+    }
+  }
+  key[2]=nKey[2];
+  for (key[1] = nKey[1] - 1; key[1] <= nKey[1] + 1; key[1]+=2){
+    const OcTreeT::NodeType* node = dynamic_cast<const OcTreeT::NodeType*>(m_octree->search(key));
+    if (node && isMotionNode(node)){
+      // we have a neighbor => not a speckle
+      return false;
+    }
+  }
+  key[1]=nKey[1];
+  for (key[0] = nKey[0] - 1; key[0] <= nKey[0] + 1; key[0]+=2){
+    const OcTreeT::NodeType* node = dynamic_cast<const OcTreeT::NodeType*>(m_octree->search(key));
+    if (node && isMotionNode(node)){
+      // we have a neighbor => not a speckle
+      return false;
+    }
+  }
+#endif
+
+  return true;
+}
 
 bool OctomapServer::isSpeckleNode(const OcTreeKey&nKey) const {
   OcTreeKey key;
