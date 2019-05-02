@@ -136,6 +136,20 @@ bool OcTreeStampedWithExpiry::expireNodeRecurs(OcTreeNodeStampedWithExpiry* node
 
 OcTreeNodeStampedWithExpiry* OcTreeStampedWithExpiry::updateNode(const octomap::OcTreeKey& key, float log_odds_update, bool lazy_eval)
 {
+  // early abort (no change will happen).
+  // may cause an overhead in some configuration, but more often helps
+  OcTreeNodeStampedWithExpiry* leaf = this->search(key);
+  // no change: node already at threshold
+  if (leaf
+      && ((log_odds_update >= 0 && leaf->getLogOdds() >= this->clamping_thres_max)
+      || ( log_odds_update <= 0 && leaf->getLogOdds() <= this->clamping_thres_min))
+      && ((log_odds_update >= 0 && leaf->getAverage() >= 1.0)
+      || ( log_odds_update <= 0 && leaf->getAverage() <= 0.0))
+      && (leaf->getTimestamp() == getLastUpdateTime()))
+  {
+    return leaf;
+  }
+
   bool createdRoot = false;
   if (this->root == NULL) {
     this->root = new OcTreeNodeStampedWithExpiry();
