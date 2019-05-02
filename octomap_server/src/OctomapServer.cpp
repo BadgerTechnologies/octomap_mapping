@@ -264,8 +264,8 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
 
 OctomapServer::~OctomapServer(){
   // Because time synchronizers reference TF filters, delete them first
-  m_sync2.reset();
-  m_sync3.reset();
+  m_sync2s.clear();
+  m_sync3s.clear();
   // Because TF message filters reference the subscriber, deleted them next
   m_tfPointCloudSubs.clear();
   m_pointCloudSubs.clear();

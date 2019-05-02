@@ -161,7 +161,7 @@ protected:
     );
     if (0 == nonclearing_nonground_topic.size())
     {
-      m_sync2.reset(
+      boost::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> > m_sync2(
         new message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2>
         (
           *tfGroundPointCloudSub,
@@ -171,6 +171,7 @@ protected:
       );
       m_sync2->registerCallback(boost::bind(&OctomapServer::insertSegmentedCloudCallback, this, _1, _2,
                                             sensor_msgs::PointCloud2::ConstPtr()));
+      m_sync2s.push_back(m_sync2);
     }
     else
     {
@@ -189,7 +190,7 @@ protected:
           5
         )
       );
-      m_sync3.reset(
+      boost::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> > m_sync3(
         new message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2>
         (
           *tfGroundPointCloudSub,
@@ -199,6 +200,7 @@ protected:
         )
       );
       m_sync3->registerCallback(boost::bind(&OctomapServer::insertSegmentedCloudCallback, this, _1, _2, _3));
+      m_sync3s.push_back(m_sync3);
 
       m_pointCloudSubs.push_back(nonclearingNongroundPointCloudSub);
       m_tfPointCloudSubs.push_back(tfNonclearingNongroundPointCloudSub);
@@ -315,8 +317,8 @@ protected:
   ros::Publisher  m_markerPub, m_binaryMapPub, m_fullMapPub, m_pointCloudPub, m_collisionObjectPub, m_mapPub, m_cmapPub, m_fmapPub, m_fmarkerPub;
   std::vector<boost::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2> > > m_pointCloudSubs;
   std::vector<boost::shared_ptr<tf::MessageFilter<sensor_msgs::PointCloud2> > > m_tfPointCloudSubs;
-  boost::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> > m_sync2;
-  boost::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> > m_sync3;
+  std::vector<boost::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> > > m_sync2s;
+  std::vector<boost::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> > > m_sync3s;
   ros::ServiceServer m_octomapBinaryService, m_octomapFullService, m_clearBBXService, m_resetService;
   tf::TransformListener m_tfListener;
   boost::recursive_mutex m_config_mutex;
