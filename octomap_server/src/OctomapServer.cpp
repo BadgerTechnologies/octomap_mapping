@@ -1742,6 +1742,35 @@ void OctomapServer::adjustMapData(nav_msgs::OccupancyGrid& map, const nav_msgs::
 
 }
 
+void OctomapServer::startTrackingBounds(std::string name)
+{
+
+}
+
+void OctomapServer::stopTrackingBounds(std::string name)
+{
+
+}
+
+void OctomapServer::getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<const OcTreeT> bounds_tree)
+{
+
+}
+
+void OctomapServer::resetTrackingBounds(std::string name)
+{
+
+}
+
+void OctomapServer::touchKeyAtDepth(const octomap::OcTreeKey& key, unsigned int depth /* = 0 */)
+{
+
+}
+
+void OctomapServer::touchKey(const octomap::OcTreeKey& key)
+{
+
+}
 
 std_msgs::ColorRGBA OctomapServer::heightMapColor(double h) {
 

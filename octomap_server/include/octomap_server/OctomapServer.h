@@ -105,6 +105,11 @@ public:
                                             const std::string& sensor_origin_frame_id);
   virtual bool openFile(const std::string& filename);
 
+  void startTrackingBounds(std::string name);
+  void stopTrackingBounds(std::string name);
+  void getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<const OcTreeT> bounds_tree);
+  void resetTrackingBounds(std::string name);
+
 protected:
   // Add an input point cloud topic
   inline void addCloudTopic(const std::string &topic) {
@@ -317,6 +322,9 @@ protected:
                 || oldMapInfo.origin.position.y != newMapInfo.origin.position.y);
   }
 
+  void touchKeyAtDepth(const octomap::OcTreeKey& key, unsigned int depth = 0);
+  void touchKey(const octomap::OcTreeKey& key);
+
   static std_msgs::ColorRGBA heightMapColor(double h);
   ros::NodeHandle m_nh;
   ros::Publisher  m_markerPub, m_binaryMapPub, m_fullMapPub, m_mapUpdatePub, m_pointCloudPub, m_collisionObjectPub, m_mapPub, m_cmapPub, m_fmapPub, m_fmarkerPub;
@@ -331,6 +339,7 @@ protected:
 
   OcTreeT* m_octree;
   OcTreeT* m_octree_delta_;
+  std::map<std::string, boost::shared_ptr<const OcTreeT> > m_octree_deltas_;
   octomap::KeyRay m_keyRay;  // temp storage for ray casting
   octomap::OcTreeKey m_updateBBXMin;
   octomap::OcTreeKey m_updateBBXMax;
