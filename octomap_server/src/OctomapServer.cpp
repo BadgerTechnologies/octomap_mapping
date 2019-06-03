@@ -764,6 +764,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   // JAT: Possible spot to gather update information.  For now, just worry about updating in this case
   for (SensorUpdateKeyMap::iterator it = update_cells.begin(), end=update_cells.end(); it!= end; it++) {
     m_octree->updateNode(it->key, it->value);
+    touchKey(it->key);
   }
 
   // TODO: eval lazy+updateInner vs. proper insertion
@@ -1744,32 +1745,38 @@ void OctomapServer::adjustMapData(nav_msgs::OccupancyGrid& map, const nav_msgs::
 
 void OctomapServer::startTrackingBounds(std::string name)
 {
-
+  boost::shared_ptr<OcTreeT> delta_octree(new OcTreeT(m_res));
+  delta_octree->setTreeValues(m_octree, m_octree_deltasBB_[name].get());
+  m_octree_deltas_.emplace(name, delta_octree);
 }
 
 void OctomapServer::stopTrackingBounds(std::string name)
 {
-
+  m_octree_deltas_.erase(name);
+  m_octree_deltasBB_.erase(name);
 }
 
 void OctomapServer::getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<const OcTreeT> bounds_tree)
 {
-
+  delta_tree->setTreeValues(m_octree_deltas_[name].get(), m_octree_deltasBB_[name].get());
 }
 
 void OctomapServer::resetTrackingBounds(std::string name)
 {
-
+  m_octree_deltasBB_[name].reset();
 }
 
-void OctomapServer::touchKeyAtDepth(const octomap::OcTreeKey& key, unsigned int depth /* = 0 */)
+void OctomapServer::touchKeyAtDepth(const OcTreeKey& key, unsigned int depth /* = 0 */)
 {
-
+  for(auto bounds_tree : m_octree_deltasBB_)
+  {
+    bounds_tree.second->setNodeValueAtDepth(key, depth, bounds_tree.second->getClampingThresMax());
+  }
 }
-
-void OctomapServer::touchKey(const octomap::OcTreeKey& key)
+// for convenience
+void OctomapServer::touchKey(const OcTreeKey& key)
 {
-
+  touchKeyAtDepth(key);
 }
 
 std_msgs::ColorRGBA OctomapServer::heightMapColor(double h) {

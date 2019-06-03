@@ -339,7 +339,8 @@ protected:
 
   OcTreeT* m_octree;
   OcTreeT* m_octree_delta_;
-  std::map<std::string, boost::shared_ptr<const OcTreeT> > m_octree_deltas_;
+  std::map<std::string, boost::shared_ptr<OcTreeT> > m_octree_deltas_;
+  std::map<std::string, boost::shared_ptr<OcTreeT> > m_octree_deltasBB_;
   octomap::KeyRay m_keyRay;  // temp storage for ray casting
   octomap::OcTreeKey m_updateBBXMin;
   octomap::OcTreeKey m_updateBBXMax;
