@@ -807,7 +807,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   if (!pruned && m_expirePeriod > 0.0) {
     if (now >= m_expireLastTime + ros::Duration(m_expirePeriod)) {
       m_expireLastTime = now;
-      m_octree->expireNodes();
+      m_octree->expireNodes(boost::bind(&OctomapServer::touchKeyAtDepth, this, _1, _2));
     }
   }
 
@@ -832,7 +832,8 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
       ss << " from (" << origin.x() << ", " << origin.y() << ", " << origin.z() << ")";
       ROS_INFO_STREAM(ss.str());
       octomap::point3d base_position(origin.x(), origin.y(), origin.z());
-      m_octree->outOfBounds(m_base2DDistanceLimit, m_baseHeightLimit, m_baseDepthLimit, base_position);
+      m_octree->outOfBounds(m_base2DDistanceLimit, m_baseHeightLimit, m_baseDepthLimit, base_position,
+          boost::bind(&OctomapServer::touchKeyAtDepth, this, _1, _2));
     }
   }
 
