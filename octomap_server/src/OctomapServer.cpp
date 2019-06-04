@@ -45,7 +45,6 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
 : m_nh(),
   m_reconfigureServer(m_config_mutex),
   m_octree(NULL),
-  m_octree_delta_(NULL),
   m_internal_delta_bb_name("s24NVTZx5F"),
   m_maxRange(-1.0),
   m_worldFrameId("/map"), m_baseFrameId("base_footprint"),
@@ -195,12 +194,6 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_octree->setClampingThresMin(thresMin);
   m_octree->setClampingThresMax(thresMax);
   m_octree->enableChangeDetection(true);
-  // Delta octmap will have identical properties
-  m_octree_delta_ = new OcTreeT(m_res);
-  m_octree_delta_->setProbHit(probHit);
-  m_octree_delta_->setProbMiss(probMiss);
-  m_octree_delta_->setClampingThresMin(thresMin);
-  m_octree_delta_->setClampingThresMax(thresMax);
 
   m_treeDepth = m_octree->getTreeDepth();
   m_maxTreeDepth = m_treeDepth;
@@ -330,11 +323,6 @@ OctomapServer::~OctomapServer(){
   if (m_octree){
     delete m_octree;
     m_octree = NULL;
-  }
-
-  if (m_octree_delta_){
-    delete m_octree_delta_;
-    m_octree_delta_ = NULL;
   }
 
 }
@@ -763,9 +751,12 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   }
   // now update all cells per the accumulated update
   // JAT: Possible spot to gather update information.  For now, just worry about updating in this case
-  for (SensorUpdateKeyMap::iterator it = update_cells.begin(), end=update_cells.end(); it!= end; it++) {
-    m_octree->updateNode(it->key, it->value);
-    touchKey(it->key);
+  {
+    boost::mutex::scoped_lock lock(m_octree_lock_);
+    for (SensorUpdateKeyMap::iterator it = update_cells.begin(), end=update_cells.end(); it!= end; it++) {
+      m_octree->updateNode(it->key, it->value);
+      touchKey(it->key);
+    }
   }
 
   // TODO: eval lazy+updateInner vs. proper insertion
@@ -807,6 +798,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
   // (We don't want to do both in one update, as they are both expensive)
   if (!pruned && m_expirePeriod > 0.0) {
     if (now >= m_expireLastTime + ros::Duration(m_expirePeriod)) {
+      boost::mutex::scoped_lock lock(m_octree_lock_);
       m_expireLastTime = now;
       m_octree->expireNodes(boost::bind(&OctomapServer::touchKeyAtDepth, this, _1, _2));
     }
@@ -833,6 +825,7 @@ void OctomapServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCl
       ss << " from (" << origin.x() << ", " << origin.y() << ", " << origin.z() << ")";
       ROS_INFO_STREAM(ss.str());
       octomap::point3d base_position(origin.x(), origin.y(), origin.z());
+      boost::mutex::scoped_lock lock(m_octree_lock_);
       m_octree->outOfBounds(m_base2DDistanceLimit, m_baseHeightLimit, m_baseDepthLimit, base_position,
           boost::bind(&OctomapServer::touchKeyAtDepth, this, _1, _2));
     }
@@ -1163,7 +1156,6 @@ void OctomapServer::publishAll(const ros::Time& rostime){
       else
         freeNodesVis.markers[i].action = visualization_msgs::Marker::DELETE;
     }
-
     m_fmarkerPub.publish(freeNodesVis);
   }
 
@@ -1189,10 +1181,12 @@ void OctomapServer::publishAll(const ros::Time& rostime){
 
   if (publishMapUpdate)
   {
-    m_octree_delta_->setTreeValues(m_octree, m_octree_deltaBB_[m_internal_delta_bb_name].get());
-    publishOctoMapUpdate(rostime);
-    m_octree_delta_->clear();
-    resetTrackingBounds(m_internal_delta_bb_name);
+    boost::shared_ptr<OcTreeT> data_map(new OcTreeT(m_res));
+    boost::shared_ptr<octomap::OcTree> bounds_map(new octomap::OcTree(m_res));
+    getTrackingBounds(m_internal_delta_bb_name,
+        data_map,
+        bounds_map);
+    publishOctoMapUpdate(rostime, data_map.get(), bounds_map.get());
   }
 
 
@@ -1321,16 +1315,19 @@ void OctomapServer::publishFullOctoMap(const ros::Time& rostime) const{
 
 }
 
-void OctomapServer::publishOctoMapUpdate(const ros::Time& rostime) const{
+void OctomapServer::publishOctoMapUpdate(const ros::Time& rostime, OcTreeT* data_tree,
+    octomap::OcTree* bounds_tree) const{
 
   ::octomap_msgs::OctomapUpdate_<std::allocator<void> > map_msg;
   map_msg.header.frame_id = m_worldFrameId;
   map_msg.header.stamp = rostime;
 
-  if (   octomap_msgs::fullMapToMsg(*m_octree_delta_, map_msg.octomap_update) )
+  //if (   octomap_msgs::fullMapToMsg(*m_octree_delta_, map_msg.octomap_update) )
       //&& octomap_msgs::fullMapToMsg(*m_octree_deltaBB_.find(m_internal_delta_bb_name)->second.get(), map_msg.octomap_bounds))
 //  if( octomap_msgs::fullMapToMsg(*m_octree_delta_, map_msg.octomap_update) )
 //    if( octomap_msgs::fullMapToMsg(*m_octree_deltaBB_[m_internal_delta_bb_name], map_msg.octomap_bounds) )
+  if (    octomap_msgs::fullMapToMsg(*data_tree, map_msg.octomap_update)
+       && octomap_msgs::fullMapToMsg(*bounds_tree, map_msg.octomap_bounds))
   {
     ROS_INFO("PASSED CHECKS");
     m_mapUpdatePub.publish(map_msg);
@@ -1761,16 +1758,21 @@ void OctomapServer::stopTrackingBounds(std::string name)
     m_octree_deltaBB_.erase(name);
 }
 
-void OctomapServer::getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<const OcTreeT> bounds_tree)
+void OctomapServer::getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<octomap::OcTree> bounds_tree)
 {
   if(m_octree_deltaBB_[name].get())
+  {
+    boost::mutex::scoped_lock lock(m_octree_lock_);
     delta_tree->setTreeValues(m_octree, m_octree_deltaBB_[name].get());
+    bounds_tree->setTreeValues(m_octree_deltaBB_[name].get(), m_octree_deltaBB_[name].get());
+    m_octree_deltaBB_[name].reset(new OcTreeT(m_res));
+  }
 }
 
 void OctomapServer::resetTrackingBounds(std::string name)
 {
   if(m_octree_deltaBB_[name].get())
-    m_octree_deltaBB_[name].reset();
+    m_octree_deltaBB_[name].reset(new OcTreeT(m_res));
 }
 
 void OctomapServer::touchKeyAtDepth(const OcTreeKey& key, unsigned int depth /* = 0 */)

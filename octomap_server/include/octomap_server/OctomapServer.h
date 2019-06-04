@@ -108,7 +108,7 @@ public:
 
   void startTrackingBounds(std::string name);
   void stopTrackingBounds(std::string name);
-  void getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<const OcTreeT> bounds_tree);
+  void getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<octomap::OcTree> bounds_tree);
   void resetTrackingBounds(std::string name);
 
 protected:
@@ -246,7 +246,9 @@ protected:
   void reconfigureCallback(octomap_server::OctomapServerConfig& config, uint32_t level);
   void publishBinaryOctoMap(const ros::Time& rostime = ros::Time::now()) const;
   void publishFullOctoMap(const ros::Time& rostime = ros::Time::now()) const;
-  void publishOctoMapUpdate(const ros::Time& rostime = ros::Time::now()) const;
+  void publishOctoMapUpdate(const ros::Time& rostime = ros::Time::now(),
+      OcTreeT* data_tree = NULL,
+      octomap::OcTree* bounds_tree = NULL) const;
   virtual void publishAll(const ros::Time& rostime = ros::Time::now());
 
   /**
@@ -339,9 +341,10 @@ protected:
   dynamic_reconfigure::Server<OctomapServerConfig> m_reconfigureServer;
 
   OcTreeT* m_octree;
-  OcTreeT* m_octree_delta_;
+  //OcTreeT* m_octree_delta_;
+  boost::mutex m_octree_lock_;
   std::string m_internal_delta_bb_name;
-  std::map<std::string, boost::shared_ptr<OcTreeT> > m_octree_deltaBB_;
+  std::map<std::string, boost::shared_ptr<octomap::OcTree> > m_octree_deltaBB_;
   octomap::KeyRay m_keyRay;  // temp storage for ray casting
   octomap::OcTreeKey m_updateBBXMin;
   octomap::OcTreeKey m_updateBBXMax;
