@@ -46,6 +46,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   m_reconfigureServer(m_config_mutex),
   m_octree(NULL),
   m_octree_delta_(NULL),
+  m_internal_delta_bb_name("s24NVTZx5F"),
   m_maxRange(-1.0),
   m_worldFrameId("/map"), m_baseFrameId("base_footprint"),
   m_useHeightMap(true),
@@ -1188,15 +1189,10 @@ void OctomapServer::publishAll(const ros::Time& rostime){
 
   if (publishMapUpdate)
   {
-    octomap::KeyBoolMap::const_iterator it;
-    for (it=m_octree->changedKeysBegin(); it!=m_octree->changedKeysEnd(); it++)
-    {
-      if(m_octree->search(it->first, m_octree->getTreeDepth()))
-        m_octree_delta_->setNodeValue(it->first, m_octree->search(it->first, m_octree->getTreeDepth())->getValue());
-    }
+    m_octree_delta_->setTreeValues(m_octree, m_octree_deltaBB_[m_internal_delta_bb_name].get());
     publishOctoMapUpdate(rostime);
     m_octree_delta_->clear();
-    m_octree->resetChangeDetection();
+    resetTrackingBounds(m_internal_delta_bb_name);
   }
 
 
@@ -1327,13 +1323,13 @@ void OctomapServer::publishFullOctoMap(const ros::Time& rostime) const{
 
 void OctomapServer::publishOctoMapUpdate(const ros::Time& rostime) const{
 
-  Octomap map_delta;
-  map_delta.header.frame_id = m_worldFrameId;
-  map_delta.header.stamp = rostime;
+  Octomap map_msg;
+  OcTreeT map_delta;
+  map_msg.header.frame_id = m_worldFrameId;
+  map_msg.header.stamp = rostime;
 
-
-  if (octomap_msgs::fullMapToMsg(*m_octree_delta_, map_delta))
-    m_mapUpdatePub.publish(map_delta);
+  if (octomap_msgs::fullMapToMsg(*m_octree_delta_, map_msg))
+    m_mapUpdatePub.publish(map_msg);
   else
     ROS_ERROR("Error serializing OctoMap Update");
 
@@ -1747,29 +1743,28 @@ void OctomapServer::adjustMapData(nav_msgs::OccupancyGrid& map, const nav_msgs::
 void OctomapServer::startTrackingBounds(std::string name)
 {
   boost::shared_ptr<OcTreeT> delta_octree(new OcTreeT(m_res));
-  delta_octree->setTreeValues(m_octree, m_octree_deltasBB_[name].get());
-  m_octree_deltas_.emplace(name, delta_octree);
+  //delta_octree->setTreeValues(m_octree, m_octree_deltasBB_[name].get());
+  m_octree_deltaBB_.emplace(name, delta_octree);
 }
 
 void OctomapServer::stopTrackingBounds(std::string name)
 {
-  m_octree_deltas_.erase(name);
-  m_octree_deltasBB_.erase(name);
+  m_octree_deltaBB_.erase(name);
 }
 
 void OctomapServer::getTrackingBounds(std::string name, boost::shared_ptr<OcTreeT> delta_tree, boost::shared_ptr<const OcTreeT> bounds_tree)
 {
-  delta_tree->setTreeValues(m_octree_deltas_[name].get(), m_octree_deltasBB_[name].get());
+  delta_tree->setTreeValues(m_octree, m_octree_deltaBB_[name].get());
 }
 
 void OctomapServer::resetTrackingBounds(std::string name)
 {
-  m_octree_deltasBB_[name].reset();
+  m_octree_deltaBB_[name].reset();
 }
 
 void OctomapServer::touchKeyAtDepth(const OcTreeKey& key, unsigned int depth /* = 0 */)
 {
-  for(auto bounds_tree : m_octree_deltasBB_)
+  for(auto bounds_tree : m_octree_deltaBB_)
   {
     bounds_tree.second->setNodeValueAtDepth(key, depth, bounds_tree.second->getClampingThresMax());
   }
