@@ -37,7 +37,6 @@
 namespace octomap_server {
 
 #ifdef COLOR_OCTOMAP_SERVER
-#error "SensorUpdateKeyMap not yet compatable with COLOR_OCTOMAP_SERVER"
 typedef pcl::PointXYZRGB PCLPoint;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
 typedef octomap::ColorOcTree OcTreeT;
