@@ -96,9 +96,11 @@ public:
                                             const sensor_msgs::PointCloud2::ConstPtr& nonclearing_nonground_cloud,
                                             const sensor_msgs::PointCloud2::ConstPtr& nonmarking_nonground_cloud,
                                             const std::string& sensor_origin_frame_id,
+                                            unsigned int skip_count,
                                             unsigned int callback_id);
   virtual void insertSegmentedCloudCallback(PointCloudSynchronizer::MsgTopicVectorConstPtr msgs_and_topics,
                                             const std::string& sensor_origin_frame_id,
+                                            unsigned int skip_count,
                                             unsigned int callback_id);
   virtual bool openFile(const std::string& filename);
 
@@ -135,6 +137,7 @@ protected:
                                      const std::string &nonground_topic,
                                      const std::string &nonclearing_nonground_topic,
                                      const std::string &nonmarking_nonground_topic,
+                                     unsigned int skip_count,
                                      const std::string &sensor_origin_frame_id) {
     if (ground_topic.empty() &&
         nonground_topic.empty() &&
@@ -167,7 +170,7 @@ protected:
       sync->addTopic(nonmarking_nonground_topic, m_worldFrameId);
 
     sync->registerCallback(boost::bind(&OctomapServer::insertSegmentedCloudCallback, this, _1,
-                                       sensor_origin_frame_id, callback_id));
+                                       sensor_origin_frame_id, skip_count, callback_id));
     m_syncs.push_back(sync);
   }
 

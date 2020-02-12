@@ -288,6 +288,7 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
       std::string nonclearing_nonground_topic = "";
       std::string nonmarking_nonground_topic = "";
       std::string sensor_origin_frame_id = "";
+      unsigned int skip_count = m_callbackSkipCount;
       XmlRpc::XmlRpcValue& segmented_topic(segmented_topics[i]);
       if (segmented_topic.getType() == XmlRpc::XmlRpcValue::TypeStruct) {
         std::string member;
@@ -326,9 +327,20 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
             sensor_origin_frame_id = static_cast<std::string>(v);
           }
         }
+        member = "skip_count";
+        if (segmented_topic.hasMember(member)) {
+          XmlRpc::XmlRpcValue& v(segmented_topic[member]);
+          if (v.getType() == XmlRpc::XmlRpcValue::TypeInt) {
+            int t = static_cast<int>(v);
+            if (t>=0) {
+              skip_count = static_cast<unsigned int>(t);
+            }
+          }
+        }
       }
       addSegmentedCloudTopic(ground_topic, nonground_topic,
                              nonclearing_nonground_topic, nonmarking_nonground_topic,
+                             skip_count,
                              sensor_origin_frame_id);
     }
   }
@@ -530,6 +542,7 @@ void OctomapServer::insertCloudCallback(const sensor_msgs::PointCloud2::ConstPtr
 void OctomapServer::insertSegmentedCloudCallback(
     PointCloudSynchronizer::MsgTopicVectorConstPtr msgs_and_topics,
     const std::string& sensor_origin_frame_id,
+    unsigned int skip_count,
     unsigned int callback_id)
 {
   sensor_msgs::PointCloud2::ConstPtr ground_cloud;
@@ -564,6 +577,7 @@ void OctomapServer::insertSegmentedCloudCallback(
       nonclearing_nonground_cloud,
       nonmarking_nonground_cloud,
       sensor_origin_frame_id,
+      skip_count,
       callback_id);
 }
 
@@ -573,9 +587,10 @@ void OctomapServer::insertSegmentedCloudCallback(
     const sensor_msgs::PointCloud2::ConstPtr& nonclearing_nonground_cloud,
     const sensor_msgs::PointCloud2::ConstPtr& nonmarking_nonground_cloud,
     const std::string& sensor_origin_frame_id,
+    unsigned int skip_count,
     unsigned int callback_id)
 {
-  if (m_callbackCounts[callback_id] < m_callbackSkipCount)
+  if (m_callbackCounts[callback_id] < skip_count)
   {
     // skip the callback until we are at the skip count
     ++m_callbackCounts[callback_id];
