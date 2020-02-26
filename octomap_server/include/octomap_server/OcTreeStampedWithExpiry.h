@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <octomap/OcTreeNode.h>
 #include <octomap/OccupancyOcTreeBase.h>
+#include <octomap_server/SensorUpdateKeyMap.h>
 
 namespace octomap_server {
 using NodeChangeNotification = std::function<void(const octomap::OcTreeKey&, unsigned int)>;
@@ -142,6 +143,12 @@ class OcTreeStampedWithExpiry : public octomap::OccupancyOcTreeBase <OcTreeNodeS
 
     /// Get mode of deleting free space
     bool getDeleteMinimum() { return delete_minimum; }
+
+    // Apply a sensor update to our tree efficiently.
+    // This method is O(n*log(depth)), where looping over the
+    // update and calling updateNode would be O(n*depth) where n is the number
+    // of new nodes in the update and depth is the tree_depth.
+    void applyUpdate(const SensorUpdateKeyMap& update);
 
   protected:
     // Quadratic delta-t expiration coefficients. The input is the number of

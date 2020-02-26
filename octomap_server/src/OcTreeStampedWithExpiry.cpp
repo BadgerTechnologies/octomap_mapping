@@ -145,6 +145,10 @@ bool OcTreeStampedWithExpiry::expireNodeRecurs(OcTreeNodeStampedWithExpiry* node
   return false;
 }
 
+void OcTreeStampedWithExpiry::applyUpdate(const SensorUpdateKeyMap& update)
+{
+}
+
 void OcTreeStampedWithExpiry::calculateBounds(double xy_distance,
                                               double z_height,
                                               double z_depth,

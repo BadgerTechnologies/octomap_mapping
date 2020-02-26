@@ -271,6 +271,8 @@ OctomapServer::OctomapServer(ros::NodeHandle private_nh_)
   } else
     ROS_INFO("Publishing non-latched (topics are only prepared as needed, will only be re-published on map change");
 
+  m_updateCells.setDepth(m_treeDepth);
+  m_voxelFilter.setDepth(m_treeDepth);
   // Get bounds of tree setup before subscribing to topics, but after getting
   // all parameters.
   resetUpdateBounds();
@@ -423,6 +425,11 @@ bool OctomapServer::openFile(const std::string& filename){
   m_updateBBXMax[0] = m_octree->coordToKey(maxX);
   m_updateBBXMax[1] = m_octree->coordToKey(maxY);
   m_updateBBXMax[2] = m_octree->coordToKey(maxZ);
+
+  // Reset map update and voxel filter depth and bounds
+  m_updateCells.setDepth(m_treeDepth);
+  m_voxelFilter.setDepth(m_treeDepth);
+  resetUpdateBounds();
 
   publishAll();
 
@@ -903,9 +910,9 @@ void OctomapServer::handleRayPoint(SensorUpdateKeyMap* update_cells,
   {
     octomap::OcTreeKey point_key = m_octree->coordToKey(point);
     VoxelState voxel_state = m_voxelFilter.find(point_key);
-    if (voxel_state != UNKNOWN)
+    if (voxel_state != voxel_state::UNKNOWN)
     {
-      bool was_occupied = (voxel_state == OCCUPIED);
+      bool was_occupied = (voxel_state == voxel_state::OCCUPIED);
       if (was_occupied || !occupied)
       {
         // Discrete is set and we have already processed this point this
@@ -945,7 +952,7 @@ void OctomapServer::handleRayPoint(SensorUpdateKeyMap* update_cells,
 void OctomapServer::applyUpdate()
 {
   // apply the the accumulated update
-  m_updateCells.apply(m_octree);
+  m_octree->applyUpdate(m_updateCells);
   // reset the bounds now
   resetUpdateBounds();
 }

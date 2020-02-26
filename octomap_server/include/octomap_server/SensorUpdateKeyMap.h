@@ -2,6 +2,7 @@
 #define OCTOMAP_SENSOR_UPDATE_KEY_MAP_H
 
 #include <memory>
+#include <octomap/octomap.h>
 #include <octomap_server/SensorUpdateKeyMapImpl.h>
 
 namespace octomap_server {
@@ -21,15 +22,18 @@ public:
   /// NOTE: setBounds will call clear, so no need to clear first
   void setBounds(const octomap::OcTreeKey& min_key,
                  const octomap::OcTreeKey& max_key);
+  /// setDepth should be called first before the first call to setBounds
+  void setDepth(unsigned int depth) {depth_ = depth;}
+
   inline bool isKeyOutOfBounds(const octomap::OcTreeKey& key) const
   {
     return !(min_key_[0] <= key[0] && key[0] <= max_key_[0] &&
         min_key_[1] <= key[1] && key[1] <= max_key_[1] &&
         min_key_[2] <= key[2] && key[2] <= max_key_[2]);
   }
-  void clampRayToBounds(const OcTreeT& tree, const octomap::point3d& origin, octomap::point3d* end) const;
+  void clampRayToBounds(const octomap::OcTreeSpace& tree, const octomap::point3d& origin, octomap::point3d* end) const;
   bool insertFree(const octomap::OcTreeKey& key) {return insert(key, false);}
-  bool insertFreeRay(const OcTreeT& tree, const octomap::point3d& origin, const octomap::point3d& end);
+  bool insertFreeRay(const octomap::OcTreeSpace& tree, const octomap::point3d& origin, const octomap::point3d& end);
   bool insertOccupied(const octomap::OcTreeKey& key) {return insert(key, true);}
   /** Insert a ray, optionally marking or clearing the end.
    *
@@ -59,7 +63,7 @@ public:
    * @param furthest_touched_key key furthest from origin updated
    * @return true if any work is done
    */
-  bool insertRay(const OcTreeT& tree,
+  bool insertRay(const octomap::OcTreeSpace& tree,
                  const octomap::point3d& origin,
                  octomap::point3d end,
                  bool discrete=false,
@@ -90,8 +94,6 @@ public:
 
   /// Empty the sensor update key map
   void clear() {impl_->clear();}
-  /// Apply this update to the tree
-  void apply(OcTreeT* tree) const {impl_->apply(tree);}
   /// Return the state of the given voxel
   VoxelState find(const octomap::OcTreeKey& key) const;
 
@@ -105,6 +107,7 @@ private:
 
   octomap::OcTreeKey min_key_;
   octomap::OcTreeKey max_key_;
+  unsigned int depth_;
 };
 
 }  // namespace octomap_server

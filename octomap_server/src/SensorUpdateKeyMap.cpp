@@ -24,7 +24,7 @@ SensorUpdateKeyMap::~SensorUpdateKeyMap()
 {
 }
 
-void SensorUpdateKeyMap::clampRayToBounds(const OcTreeT& tree, const octomap::point3d& origin, octomap::point3d* end) const
+void SensorUpdateKeyMap::clampRayToBounds(const octomap::OcTreeSpace& tree, const octomap::point3d& origin, octomap::point3d* end) const
 {
   octomap::OcTreeKey origin_key;
   octomap::OcTreeKey end_key;
@@ -73,7 +73,7 @@ void SensorUpdateKeyMap::setFloorTruncation(octomap::key_type floor_z)
   truncate_floor_z_ = floor_z;
 }
 
-bool SensorUpdateKeyMap::insertFreeRay(const OcTreeT& tree,
+bool SensorUpdateKeyMap::insertFreeRay(const octomap::OcTreeSpace& tree,
                                         const octomap::point3d& origin,
                                         const octomap::point3d& end)
 {
@@ -224,7 +224,7 @@ bool SensorUpdateKeyMap::insertFreeRay(const OcTreeT& tree,
   return impl_->insertFreeCells(free_cells, free_cells_count);
 }
 
-bool SensorUpdateKeyMap::insertRay(const OcTreeT& tree,
+bool SensorUpdateKeyMap::insertRay(const octomap::OcTreeSpace& tree,
                                    const octomap::point3d& origin,
                                    octomap::point3d end,
                                    bool discrete,
@@ -316,7 +316,7 @@ bool SensorUpdateKeyMap::insertRay(const OcTreeT& tree,
   // Check the adjusted end before marking or clearing the end point to correctly apply discrete.
   if (discrete)
   {
-    if (impl_->find(end_key) != UNKNOWN)
+    if (impl_->find(end_key) != voxel_state::UNKNOWN)
     {
       // ray tracing endpoint already in update, skip ray-tracing.
       skip_tracing = true;
@@ -491,6 +491,7 @@ void SensorUpdateKeyMap::setBounds(const octomap::OcTreeKey& min_key,
     {
       impl_.reset(new SensorUpdateKeyMapHashImpl());
     }
+    impl_->setDepth(depth_);
   }
   else
   {
@@ -503,7 +504,7 @@ VoxelState SensorUpdateKeyMap::find(const octomap::OcTreeKey& key) const
 {
   if (isKeyOutOfBounds(key))
   {
-    return UNKNOWN;
+    return voxel_state::UNKNOWN;
   }
   else
   {
