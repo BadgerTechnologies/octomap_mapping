@@ -148,11 +148,15 @@ void SensorUpdateKeyMapArrayImpl::downSample(const octomap::OcTreeSpace& tree, S
     for (index.k[1]=0; index.k[1]<dims.k[1]; index.k[1] += 2)
     {
       const unsigned int y_skip = index.k[1] * dims[0];
-      const VoxelState* rows[4];
+      const VoxelState* rows[8];
       rows[0] = &grid[z_skip + y_skip];
-      rows[1] = &grid[z_skip + y_skip + dims[0]];
-      rows[2] = &grid[z_skip + skip_ + y_skip];
-      rows[3] = &grid[z_skip + skip_ + y_skip + dims[0]];
+      rows[1] = &grid[z_skip + y_skip + 1];
+      rows[2] = &grid[z_skip + y_skip + dims[0]];
+      rows[3] = &grid[z_skip + y_skip + dims[0] + 1];
+      rows[4] = &grid[z_skip + skip_ + y_skip];
+      rows[5] = &grid[z_skip + skip_ + y_skip + 1];
+      rows[6] = &grid[z_skip + skip_ + y_skip + dims[0]];
+      rows[7] = &grid[z_skip + skip_ + y_skip + dims[0] + 1];
       octomap::OcTreeKey current_key;
       current_key[0] = min_key_[0] + index[0];
       current_key[1] = min_key_[1] + index[1];
@@ -163,24 +167,15 @@ void SensorUpdateKeyMapArrayImpl::downSample(const octomap::OcTreeSpace& tree, S
       VoxelState* out_row = &output_array->gridRef(current_key);
       for (index.k[0]=0; index.k[0]<dims.k[0]; index.k[0] += 2)
       {
-        const VoxelState voxel_state_or
-            = rows[0][index.k[0]]
-            | rows[0][index.k[0]+1]
-            | rows[1][index.k[0]]
-            | rows[1][index.k[0]+1]
-            | rows[2][index.k[0]]
-            | rows[2][index.k[0]+1]
-            | rows[3][index.k[0]]
-            | rows[3][index.k[0]+1];
-        const VoxelState voxel_state_and
-            = rows[0][index.k[0]]
-            & rows[0][index.k[0]+1]
-            & rows[1][index.k[0]]
-            & rows[1][index.k[0]+1]
-            & rows[2][index.k[0]]
-            & rows[2][index.k[0]+1]
-            & rows[3][index.k[0]]
-            & rows[3][index.k[0]+1];
+        VoxelState voxel_state_or = 0;
+        VoxelState voxel_state_and = ~0;
+        for (unsigned int row=0; row<8; ++row)
+        {
+          const VoxelState entry = *rows[row];
+          voxel_state_or |= entry;
+          voxel_state_and &= entry;
+          rows[row] += 2;
+        }
         // Set the inner bit if any bits were present in the or.
         // Do this without a branch to speed up this inner loop.
         // This technique works because VoxelState's are each in different
@@ -191,12 +186,8 @@ void SensorUpdateKeyMapArrayImpl::downSample(const octomap::OcTreeSpace& tree, S
         // octant. This gets handled by the or test and shift. Note the logic
         // works fine if all the octant entries were INNER, the inner bit is
         // set for both the and and the or.
-        *out_row = voxel_state_and | ((voxel_state_or != 0) << 2);
+        *out_row = voxel_state_and | ((voxel_state_and == 0 && voxel_state_or != 0) << voxel_state::INNER_SHIFT);
         ++out_row;
-        rows[0] += 2;
-        rows[1] += 2;
-        rows[2] += 2;
-        rows[3] += 2;
       }
     }
   }

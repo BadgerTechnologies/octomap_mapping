@@ -460,43 +460,58 @@ bool SensorUpdateKeyMap::insert(const octomap::OcTreeKey& key, bool value)
 void SensorUpdateKeyMap::setBounds(const octomap::OcTreeKey& min_key,
                                    const octomap::OcTreeKey& max_key)
 {
-  bool use_array = false;
+  // be sure our impls_ is the right size
+  impls_.resize(depth_+1);
   max_key_ = max_key;
   min_key_ = min_key;
   octomap::OcTreeKey key_diff;
-  key_diff[0] = max_key[0] - min_key[0];
-  key_diff[1] = max_key[1] - min_key[1];
-  key_diff[2] = max_key[2] - min_key[2];
-  // Check each diff to ensure each individual dimension is below the threshold
-  // to prevent overflowing the multiplication.
-  if (key_diff[0] < voxel_volume_array_threshold &&
-      key_diff[1] < voxel_volume_array_threshold &&
-      key_diff[2] < voxel_volume_array_threshold)
+  key_diff[0] = max_key[0] - min_key[0] + 1;
+  key_diff[1] = max_key[1] - min_key[1] + 1;
+  key_diff[2] = max_key[2] - min_key[2] + 1;
+  for (unsigned int level=0; level<=depth_; ++level)
   {
-    size_t voxel_volume = static_cast<size_t>(key_diff[0]) * key_diff[1] * key_diff[2];
-    if (voxel_volume < voxel_volume_array_threshold)
+    bool use_array = false;
+    // Check each diff to ensure each individual dimension is below the threshold
+    // to prevent overflowing the multiplication.
+    if (key_diff[0] < voxel_volume_array_threshold &&
+        key_diff[1] < voxel_volume_array_threshold &&
+        key_diff[2] < voxel_volume_array_threshold)
     {
-      use_array = true;
+      size_t voxel_volume = static_cast<size_t>(key_diff[0]) * key_diff[1] * key_diff[2];
+      if (voxel_volume < voxel_volume_array_threshold)
+      {
+        use_array = true;
+      }
     }
-  }
-  bool impl_is_array = (dynamic_cast<SensorUpdateKeyMapArrayImpl*>(impl_.get()) != nullptr);
-  // (re)allocate impl if necessary
-  if (impl_.get() == nullptr || impl_is_array != use_array)
-  {
-    if (use_array)
+    bool impl_is_array = (dynamic_cast<SensorUpdateKeyMapArrayImpl*>(impls_[level].get()) != nullptr);
+    // (re)allocate impl if necessary
+    if (impls_[level].get() == nullptr || impl_is_array != use_array)
     {
-      impl_.reset(new SensorUpdateKeyMapArrayImpl(min_key, max_key));
+      if (use_array)
+      {
+        impls_[level].reset(new SensorUpdateKeyMapArrayImpl(min_key, max_key));
+      }
+      else
+      {
+        impls_[level].reset(new SensorUpdateKeyMapHashImpl());
+      }
+      impls_[level]->setDepth(depth_);
+      impls_[level]->setLevel(level);
     }
     else
     {
-      impl_.reset(new SensorUpdateKeyMapHashImpl());
+      // no need to allocate a new impl, just clear out any old data
+      impls_[level]->clear();
     }
-    impl_->setDepth(depth_);
+    // Note: key diff does not have to be exact, its for a heuristic.
+    // Just be sure to never let it go to zero to prevent a false zero volume
+    // estimate.
+    key_diff[0] = key_diff[0] >> 1 + 1;
+    key_diff[1] = key_diff[1] >> 1 + 1;
+    key_diff[2] = key_diff[2] >> 1 + 1;
   }
-  else
-  {
-    impl_->clear();
-  }
+  // set convenience pointer to the level-0 impl.
+  impl_ = impls_[0].get();
   impl_->setBounds(min_key, max_key);
 }
 
@@ -509,6 +524,14 @@ VoxelState SensorUpdateKeyMap::find(const octomap::OcTreeKey& key) const
   else
   {
     return impl_->find(key);
+  }
+}
+
+void SensorUpdateKeyMap::updateLayers(const octomap::OcTreeSpace& tree)
+{
+  for (unsigned int level=0; level<depth_; ++level)
+  {
+    impls_[level]->downSample(tree, impls_[level+1].get());
   }
 }
 

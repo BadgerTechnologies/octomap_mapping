@@ -97,8 +97,13 @@ public:
   /// Return the state of the given voxel
   VoxelState find(const octomap::OcTreeKey& key) const;
 
+  /// Update the down-sampled layers using the given OcTreeSpace.
+  void updateLayers(const octomap::OcTreeSpace& tree);
+
 private:
-  std::unique_ptr<SensorUpdateKeyMapImpl> impl_;
+  std::vector<std::unique_ptr<SensorUpdateKeyMapImpl>> impls_;
+  // convenience pointer
+  SensorUpdateKeyMapImpl* impl_;
   std::unique_ptr<octomap::OcTreeKey> free_cells_;
   size_t free_cells_capacity_;
 

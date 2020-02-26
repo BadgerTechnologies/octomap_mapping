@@ -13,10 +13,11 @@ public:
   virtual ~SensorUpdateKeyMapImpl() {}
   /// Clear the update
   virtual void clear() = 0;
+  virtual unsigned int getDepth() const {return depth_;}
   /// NOTE: setDepth will change the interpretation of any data present
   virtual void setDepth(unsigned int depth) {depth_ = depth;}
-  virtual unsigned int getDepth() const {return depth_;}
   virtual unsigned int getLevel() const {return level_;}
+  virtual void setLevel(unsigned int level) {level_ = level;}
   /// NOTE: setBounds will call clear, so no need to clear first
   virtual void setBounds(const octomap::OcTreeKey& min_key, const octomap::OcTreeKey& max_key) = 0;
   /// Make the output map be a down-sampled depth-1 view of this map.
@@ -39,7 +40,6 @@ public:
   /// Return the state of the given voxel
   virtual VoxelState find(const octomap::OcTreeKey& key) const = 0;
 protected:
-  virtual void setLevel(unsigned int level) {level_ = level;}
   unsigned int depth_;  // Tree depth
   unsigned int level_;  // Level of the tree we are on (level 0 is the bottom)
 };
