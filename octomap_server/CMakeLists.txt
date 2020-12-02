@@ -7,6 +7,7 @@ set(PACKAGE_DEPENDENCIES
   roscpp
   visualization_msgs
   sensor_msgs
+  rosbag
   pcl_ros
   pcl_conversions
   nav_msgs
