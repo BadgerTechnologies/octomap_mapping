@@ -1,0 +1,25 @@
+# Default parameters for octomap_server for top lidar
+skip_count: 1
+publish_3d_map_period: 4.0
+publish_2d_period: 4.0
+segmented_topics:
+  - nonground_topic: "/scans/top/velodyne_points_with_invalid"
+    sensor_origin_frame_id: "top_laser_nominal"
+# Use values appropriate for a short-term memory (<60 seconds)
+# a_coeff is normalized to number of hits.
+# To find the expiry from the number of hits, multiply a_coeff by the number
+# of hits squared, and add c_coeff.
+# after 5 hit, the expiry is 4 seconds.
+# after 10 hits, the expiry is 7 seconds.
+# after 15 hits, the expiry is 12 seconds
+# about 40 hits is the full 60 seconds.
+sensor_model:
+  hit: 0.50999866688
+  miss: 0.425557483188
+  min: 0.5
+  max: 0.824797194245
+expiry:
+  a_coeff: 0.04
+  c_coeff: 2.0
+  c_coeff_free: 60.0
+  quadratic_start: 0.0

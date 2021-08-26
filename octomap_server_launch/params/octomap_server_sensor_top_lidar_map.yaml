@@ -1,0 +1,37 @@
+# Default parameters for octomap_server for front lidar
+segmented_topics:
+  - nonground_topic: "scans/top/velodyne_points_with_invalid"
+    sensor_origin_frame_id: "top_laser_nominal"
+# Use values appropriate for a mid-term memory (~10 minutes).
+# Making the memory too long uses too much memory. The long-term mapping
+# needs to be done by a separate voxel statistics accumulation mode using
+# filesystem backed memory.
+# a_coeff is normalized to number of hits.
+# To find the expiry from the number of hits, multiply a_coeff by the number
+# of hits squared, and add c_coeff.
+# after 1 hit, the expiry is 7 seconds.
+# after 2 hits, the expiry is 19 seconds.
+# after 3 hits, the expiry is 39 seconds.
+# after 12 hits, the expiry is 579 seconds.
+# The sensor model is set to clear from the max to the min in 8 misses,
+# and to take 2 misses to get to the full expiration for free
+# space. This allows some level of sensor noise to be filtered here without
+# causing too much delay. The update rate of the global costmap does not need
+# to be super quick.
+# Have free space expire in 5 minutes, while the most burnt in obstacles
+# survive nearly 10 minutes. While this might cut off a path when part of
+# the static layer bleeds back through in the 3D costmap that uses this
+# octomap, we are less confident of free space, and it currently only decays
+# linearly over time. This can lead to too much free space being kept and not
+# enough obstacles allowing for goofy global plans. Allow the free space to
+# expire after 5 minutes so the static map re-appears.
+sensor_model:
+  hit: 0.574442516812
+  miss: 0.354343693774
+  min: 0.231475216501
+  max: 0.973403006423
+expiry:
+  a_coeff: 4.0
+  c_coeff: 3.0
+  c_coeff_free: 300.0
+  quadratic_start: 0.0

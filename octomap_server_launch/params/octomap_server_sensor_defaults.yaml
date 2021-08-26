@@ -1,0 +1,19 @@
+# Default parameters for octomap_server used with sensor data
+height_map: false
+timed_map: true
+track_free_space: false
+defer_update_to_publish: true
+# no need to compress map since it is maintained pruned already
+compress_map: false
+# do not latch topics
+latch: false
+color_free:
+  r: 1.0
+  g: 0.5
+  b: 1.0
+  a: 0.2
+publish_free_space: true
+publish_3d_map_period: 2.0
+publish_3d_map_update_period: 0.066666666
+publish_2d_period: 2.0
+expire_time_delta: 1.0

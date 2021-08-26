@@ -1,0 +1,30 @@
+# Default parameters for octomap_server for front lidar
+publish_3d_map_period: 4.0
+publish_2d_period: 4.0
+segmented_topics:
+  # These topics are only published while tilting
+  - nonground_topic: "/laser_clouds/preprocessed_z_filtered"
+    ground_topic: "/no_floor_grid/laser_clouds/floor"
+    nonmarking_nonground_topic: "/laser_clouds/raw"
+    sensor_origin_frame_id: "laser_mount"
+  # This topic is only published while planar only
+  - nonground_topic: "/scans/planar_only_cloud"
+    sensor_origin_frame_id: "laser_mount"
+# Use values appropriate for a short-term memory (<60 seconds)
+# a_coeff is normalized to number of hits.
+# To find the expiry from the number of hits, multiply a_coeff by the number
+# of hits squared, and add c_coeff.
+# after 1 hit, the expiry is 4 seconds.
+# after 2 hits, the expiry is 7 seconds.
+# after 3 hits, the expiry is 12 seconds
+# 8 hits is the full 60 seconds.
+sensor_model:
+  hit: 0.549833997312
+  miss: 0.182425523806
+  min: 0.5
+  max: 0.824797194245
+expiry:
+  a_coeff: 1.0
+  c_coeff: 3.0
+  c_coeff_free: 60.0
+  quadratic_start: 0.0

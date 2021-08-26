@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>octomap_server_launch</name>
+  <version>0.0.0</version>
+  <description>Launcher for octomap-server service</description>
+
+  <maintainer email="cam@badger-technologies.com">C. Andy Martin</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>octomap_server</exec_depend>
+  <exec_depend>topic_tools</exec_depend>
+
+</package>
