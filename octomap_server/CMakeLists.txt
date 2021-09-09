@@ -63,32 +63,32 @@ add_executable(octomap_server_minimal_node src/octomap_server_minimal_node.cpp)
 target_link_libraries(octomap_server_minimal_node ${LINK_LIBS})
 
 add_executable(octomap_server_node src/octomap_server_node.cpp)
-target_link_libraries(octomap_server_node ${PROJECT_NAME} ${LINK_LIBS})
+target_link_libraries(octomap_server_node ${PROJECT_NAME} ${PROJECT_NAME}_common ${LINK_LIBS})
 
 add_executable(octomap_color_server_node src/octomap_server_node.cpp)
-target_link_libraries(octomap_color_server_node ${PROJECT_NAME}_color ${LINK_LIBS})
+target_link_libraries(octomap_color_server_node ${PROJECT_NAME}_color ${PROJECT_NAME}_common ${LINK_LIBS})
 
 add_executable(octomap_server_static src/octomap_server_static.cpp)
-target_link_libraries(octomap_server_static ${PROJECT_NAME} ${LINK_LIBS})
+target_link_libraries(octomap_server_static ${PROJECT_NAME} ${PROJECT_NAME}_common ${LINK_LIBS})
 
 add_executable(octomap_server_multilayer src/octomap_server_multilayer.cpp)
-target_link_libraries(octomap_server_multilayer ${PROJECT_NAME} ${LINK_LIBS})
+target_link_libraries(octomap_server_multilayer ${PROJECT_NAME} ${PROJECT_NAME}_common ${LINK_LIBS})
 
 add_executable(octomap_saver src/octomap_saver.cpp)
-target_link_libraries(octomap_saver ${PROJECT_NAME} ${LINK_LIBS})
+target_link_libraries(octomap_saver ${PROJECT_NAME} ${PROJECT_NAME}_common ${LINK_LIBS})
 
 add_executable(octomap_tracking_server_node src/octomap_tracking_server_node.cpp)
-target_link_libraries(octomap_tracking_server_node ${PROJECT_NAME} ${LINK_LIBS})
+target_link_libraries(octomap_tracking_server_node ${PROJECT_NAME} ${PROJECT_NAME}_common ${LINK_LIBS})
 
 # Nodelet
 add_library(octomap_server_nodelet src/octomap_server_nodelet.cpp)
-target_link_libraries(octomap_server_nodelet ${PROJECT_NAME} ${LINK_LIBS})
+target_link_libraries(octomap_server_nodelet ${PROJECT_NAME} ${PROJECT_NAME}_common ${LINK_LIBS})
 
 add_library(octomap_color_server_nodelet src/octomap_server_nodelet.cpp)
-target_link_libraries(octomap_color_server_nodelet ${PROJECT_NAME}_color ${LINK_LIBS})
+target_link_libraries(octomap_color_server_nodelet ${PROJECT_NAME}_color ${PROJECT_NAME}_common ${LINK_LIBS})
 
 # install targets:
-install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_color
+install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_color ${PROJECT_NAME}_common
   octomap_server_node
   octomap_color_server_node
   octomap_server_minimal_node
