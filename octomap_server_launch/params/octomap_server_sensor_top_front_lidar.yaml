@@ -3,9 +3,10 @@ skip_count: 0
 publish_3d_map_period: 4.0
 publish_2d_period: 4.0
 segmented_topics:
-  - nonground_topic: "/lidars/top_front/segmentation/obstacle_cloud_throttle"
-    ground_topic: "/lidars/top_front/segmentation/floor_cloud_throttle"
-    sensor_origin_frame_id: "top_front_laser_nominal"
+  - nonground_topic: "/lidars/top_front/segmentation/obstacle_cloud"
+    ground_topic: "/lidars/top_front/segmentation/floor_cloud"
+    nonmarking_nonground_topic: "/lidars/top_front/driver/cloud"
+    sensor_origin_frame_id: "top_front_laser_parallel_to_base"
 # Use values appropriate for a short-term memory (<60 seconds)
 # a_coeff is normalized to number of hits.
 # To find the expiry from the number of hits, multiply a_coeff by the number

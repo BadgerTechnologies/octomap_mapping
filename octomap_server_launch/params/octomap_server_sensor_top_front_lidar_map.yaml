@@ -1,8 +1,9 @@
-# Default parameters for octomap_server for front lidar
+# Default parameters for octomap_server for top lidar in map frame
 segmented_topics:
   - nonground_topic: "/lidars/top_front/segmentation/obstacle_cloud"
     ground_topic: "/lidars/top_front/segmentation/floor_cloud"
-    sensor_origin_frame_id: "top_front_laser_nominal"
+    nonmarking_nonground_topic: "/lidars/top_front/driver/cloud"
+    sensor_origin_frame_id: "top_front_laser_parallel_to_base"
 # Use values appropriate for a mid-term memory (~10 minutes).
 # Making the memory too long uses too much memory. The long-term mapping
 # needs to be done by a separate voxel statistics accumulation mode using
