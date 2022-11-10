@@ -2,7 +2,7 @@
   <arg name="debug" default="false" />
   <arg name="profile" default="false" />
   <arg name="launch_prefix_debug" default="gdb -ex run --args" />
-  <arg name="launch_prefix_profile" default="/usr/bin/env LD_PRELOAD=/usr/lib/libprofiler.so.0 CPUPROFILE=/tmp/prof.out CPUPROFILESIGNAL=12" />
+  <arg name="launch_prefix_profile" default="/usr/bin/env LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libprofiler.so.0 CPUPROFILE=/tmp/prof.out CPUPROFILESIGNAL=12" />
   <arg name="launch_prefix" default="$(eval arg('launch_prefix_debug') if arg('debug') else arg('launch_prefix_profile') if arg('profile') else '')" />
   <group ns="octomap">
     <include file="$(find octomap_server_launch)/launch/octomap_server_map_throttled_topics.launch" />
