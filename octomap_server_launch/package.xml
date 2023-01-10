@@ -9,6 +9,8 @@
   <license>TODO</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>badger_salt_cmake</build_depend>
+
   <exec_depend>octomap_server</exec_depend>
   <exec_depend>topic_tools</exec_depend>
 

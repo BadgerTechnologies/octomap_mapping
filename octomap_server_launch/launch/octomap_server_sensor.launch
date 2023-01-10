@@ -7,8 +7,8 @@
   <node required="$(optenv KEEPALIVE true)" pkg="octomap_server" type="octomap_server_node" ns="$(arg sensor_name)" name="octomap_server_node_$(arg sensor_name)"
     output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="frame_id" value="$(arg frame_id)" />
-    <rosparam command="load" file="$(find octomap_server_launch)/params/octomap_server_sensor_defaults.yaml" />
-    <rosparam command="load" file="$(find octomap_server_launch)/params/octomap_server_sensor_defaults_$(arg frame_id).yaml" />
+    <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/octomap_server_sensor_defaults.yaml" />
+    <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/octomap_server_sensor_defaults_$(arg frame_id).yaml" />
     <rosparam command="load" file="$(find octomap_server_launch)/params/octomap_server_sensor_$(arg sensor_name).yaml" />
   </node>
 
