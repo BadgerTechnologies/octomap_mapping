@@ -1,1 +1,8 @@
-{{ salt['pillar.get']('configuration:software:octomap_server:octomap_server_sensor_default_odom', {}) | yaml(false) }}
+{%- set odom_params = salt['pillar.get']('configuration:software:octomap_server:octomap_server_sensor_default_odom') %}
+{%- set clearance = salt['pillar.get']('configuration:hardware:geometry:clearance') %}
+
+{%- if clearance %}
+  {%- do odom_params.update({"base_height_limit": clearance}) %}
+{%- endif %}
+
+{{ odom_params | yaml(false) }}
