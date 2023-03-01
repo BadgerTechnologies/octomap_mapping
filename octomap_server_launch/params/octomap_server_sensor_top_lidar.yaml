@@ -6,20 +6,18 @@ segmented_topics:
   - nonground_topic: "/scans/top/velodyne_points_with_invalid"
     sensor_origin_frame_id: "top_laser_nominal"
 # Use values appropriate for a short-term memory (<60 seconds)
-# a_coeff is normalized to number of hits.
-# To find the expiry from the number of hits, multiply a_coeff by the number
-# of hits squared, and add c_coeff.
-# after 5 hit, the expiry is 4 seconds.
-# after 10 hits, the expiry is 7 seconds.
 # after 15 hits, the expiry is 12 seconds
-# about 40 hits is the full 60 seconds.
+# after 30 hits, the expiry is 39 seconds
 sensor_model:
-  hit: 0.50999866688
-  miss: 0.425557483188
+  hit: 0.5099986668799654
+  miss: 0.401312339887548
   min: 0.5
-  max: 0.824797194245
+  max: 0.9168273035060777
 expiry:
-  a_coeff: 0.04
-  c_coeff: 2.0
-  c_coeff_free: 60.0
-  quadratic_start: 0.0
+  at_negative_infinity: 3.0
+  at_positive_infinity: 60.0
+  x1: 15
+  at_x1: 12
+  x2: 30
+  at_x2: 39
+  free_space: 60.0

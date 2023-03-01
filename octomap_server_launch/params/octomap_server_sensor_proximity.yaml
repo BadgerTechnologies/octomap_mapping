@@ -10,21 +10,18 @@ segmented_topics:
   - nonground_topic: "/depthcam_proximity_back2/depth_nofloor_nocliff/points"
     ground_topic: "/depthcam_proximity_back2/depth_floor/points"
 # Use values appropriate for a very short-term memory (<30 seconds)
-# a_coeff is normalized to number of hits.
-# To find the expiry from the number of hits, multiply a_coeff by the number
-# of hits squared, and add c_coeff.
-# Therefore:
-# after 15 hits (about a second) the expiry is only 3 seconds.
-# after 30 hits (about two seconds) the expiry is 8 seconds
-# after 45 hits (about three seconds) the expiry is 13 seconds
-# 60 hits is the full 30 seconds.
+# after 15 hits (about a second) the expiry is only 5 seconds.
+# after 30 hits (about two seconds) the expiry is 10 seconds
 sensor_model:
-  hit: 0.504166570219
-  miss: 0.462570154656
+  hit: 0.5041665702187285
+  miss: 0.43782349911420193
   min: 0.5
-  max: 0.753623859524
+  max: 0.8807970779778824
 expiry:
-  a_coeff: 0.0083333333
-  c_coeff: 2.0
-  c_coeff_free: 30.0
-  quadratic_start: 0.0
+  at_negative_infinity: 3.0
+  at_positive_infinity: 30.0
+  x1: 15
+  at_x1: 5
+  x2: 30
+  at_x2: 10
+  free_space: 30.0

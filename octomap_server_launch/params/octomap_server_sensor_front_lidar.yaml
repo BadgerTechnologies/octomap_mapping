@@ -11,20 +11,18 @@ segmented_topics:
   - nonground_topic: "/scans/planar_only_cloud"
     sensor_origin_frame_id: "laser_mount"
 # Use values appropriate for a short-term memory (<60 seconds)
-# a_coeff is normalized to number of hits.
-# To find the expiry from the number of hits, multiply a_coeff by the number
-# of hits squared, and add c_coeff.
-# after 1 hit, the expiry is 4 seconds.
-# after 2 hits, the expiry is 7 seconds.
 # after 3 hits, the expiry is 12 seconds
-# 8 hits is the full 60 seconds.
+# after 6 hits, the expiry is 39 seconds
 sensor_model:
-  hit: 0.549833997312
-  miss: 0.182425523806
+  hit: 0.5498339973124778
+  miss: 0.23147521650098246
   min: 0.5
-  max: 0.824797194245
+  max: 0.9168273035060777
 expiry:
-  a_coeff: 1.0
-  c_coeff: 3.0
-  c_coeff_free: 60.0
-  quadratic_start: 0.0
+  at_negative_infinity: 3.0
+  at_positive_infinity: 60.0
+  x1: 3
+  at_x1: 12
+  x2: 6
+  at_x2: 39
+  free_space: 60.0
