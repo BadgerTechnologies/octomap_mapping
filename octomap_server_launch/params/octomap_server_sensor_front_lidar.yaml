@@ -5,7 +5,7 @@ segmented_topics:
   # These topics are only published while tilting
   - nonground_topic: "/laser_clouds/preprocessed_z_filtered"
     ground_topic: "/no_floor_grid/laser_clouds/floor"
-    nonmarking_nonground_topic: "/laser_clouds/raw"
+    nonmarking_nonground_topic: "/laser_clouds/raw_z_filtered"
     sensor_origin_frame_id: "laser_mount"
   # This topic is only published while planar only
   - nonground_topic: "/scans/planar_only_cloud"
