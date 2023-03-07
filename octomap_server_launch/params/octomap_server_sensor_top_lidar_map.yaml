@@ -1,6 +1,7 @@
 # Default parameters for octomap_server for front lidar
+skip_count: 4
 segmented_topics:
-  - nonground_topic: "scans/top/velodyne_points_with_invalid"
+  - nonground_topic: "/scans/top/velodyne_points_with_invalid"
     sensor_origin_frame_id: "top_laser_nominal"
 # Use values appropriate for a mid-term memory (~10 minutes).
 # Making the memory too long uses too much memory. The long-term mapping

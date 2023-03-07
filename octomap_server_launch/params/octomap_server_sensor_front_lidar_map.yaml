@@ -1,12 +1,12 @@
 # Default parameters for octomap_server for front lidar
 segmented_topics:
   # These topics are only published while tilting
-  - nonground_topic: "laser_clouds/preprocessed_z_filtered"
-    ground_topic: "no_floor_grid/laser_clouds/floor"
-    nonmarking_nonground_topic: "laser_clouds/raw_z_filtered"
+  - nonground_topic: "/laser_clouds/preprocessed_z_filtered"
+    ground_topic: "/no_floor_grid/laser_clouds/floor"
+    nonmarking_nonground_topic: "/laser_clouds/raw_z_filtered"
     sensor_origin_frame_id: "laser_mount"
   # This topic is only published while planar only
-  - nonground_topic: "scans/planar_only_cloud"
+  - nonground_topic: "/scans/planar_only_cloud"
     sensor_origin_frame_id: "laser_mount"
 # Use values appropriate for a mid-term memory (~10 minutes).
 # Making the memory too long uses too much memory. The long-term mapping

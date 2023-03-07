@@ -1,13 +1,14 @@
 # Default parameters for octomap_server for front lidar
+skip_count: 9
 segmented_topics:
-  - nonground_topic: "depthcam_proximity_front/depth_nofloor_nocliff/points"
-    ground_topic: "depthcam_proximity_front/depth_floor/points"
-  - nonground_topic: "depthcam_proximity_back/depth_nofloor_nocliff/points"
-    ground_topic: "depthcam_proximity_back/depth_floor/points"
-  - nonground_topic: "depthcam_proximity_front2/depth_nofloor_nocliff/points"
-    ground_topic: "depthcam_proximity_front2/depth_floor/points"
-  - nonground_topic: "depthcam_proximity_back2/depth_nofloor_nocliff/points"
-    ground_topic: "depthcam_proximity_back2/depth_floor/points"
+  - nonground_topic: "/depthcam_proximity_front/depth_nofloor_nocliff/points"
+    ground_topic: "/depthcam_proximity_front/depth_floor/points"
+  - nonground_topic: "/depthcam_proximity_back/depth_nofloor_nocliff/points"
+    ground_topic: "/depthcam_proximity_back/depth_floor/points"
+  - nonground_topic: "/depthcam_proximity_front2/depth_nofloor_nocliff/points"
+    ground_topic: "/depthcam_proximity_front2/depth_floor/points"
+  - nonground_topic: "/depthcam_proximity_back2/depth_nofloor_nocliff/points"
+    ground_topic: "/depthcam_proximity_back2/depth_floor/points"
 # Use values appropriate for a mid-term memory (~10 minutes).
 # Making the memory too long uses too much memory. The long-term mapping
 # needs to be done by a separate voxel statistics accumulation mode using
