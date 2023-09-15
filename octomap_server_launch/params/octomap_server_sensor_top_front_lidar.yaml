@@ -1,4 +1,4 @@
-# Default parameters for octomap_server for top lidar
+# Default parameters for octomap_server for top front lidar
 skip_count: 0
 publish_3d_map_period: 4.0
 publish_2d_period: 4.0

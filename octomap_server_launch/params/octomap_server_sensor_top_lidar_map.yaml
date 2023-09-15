@@ -1,4 +1,4 @@
-# Default parameters for octomap_server for front lidar
+# Default parameters for octomap_server for top lidar in map frame
 skip_count: 4
 segmented_topics:
   - nonground_topic: "/scans/top/velodyne_points_with_invalid"

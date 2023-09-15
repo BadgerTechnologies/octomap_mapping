@@ -1,4 +1,4 @@
-# Default parameters for octomap_server for front lidar
+# Default parameters for octomap_server for front lidar in map frame
 segmented_topics:
   # These topics are only published while tilting
   - nonground_topic: "/laser_clouds/preprocessed_z_filtered"

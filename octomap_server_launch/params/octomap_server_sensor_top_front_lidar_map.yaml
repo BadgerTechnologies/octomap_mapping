@@ -1,4 +1,4 @@
-# Default parameters for octomap_server for top lidar in map frame
+# Default parameters for octomap_server for top front lidar in map frame
 skip_count: 4
 segmented_topics:
   - nonground_topic: "/lidars/top_front/segmentation/obstacle_cloud"
