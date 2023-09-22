@@ -15,7 +15,7 @@
       </include>
       <group ns="map" if="$(optenv ENABLE_COSTMAP_3D_GLOBAL False)">
         <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="front_lidar_map" />
+          <arg name="sensor_name" value="front_lidar" />
           <arg name="launch_prefix" value="$(arg launch_prefix)" />
           <arg name="frame_id" value="map" />
         </include>
@@ -33,7 +33,7 @@
       </include>
       <group ns="map" if="$(optenv ENABLE_COSTMAP_3D_GLOBAL False)">
         <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="proximity_map" />
+          <arg name="sensor_name" value="proximity" />
           <arg name="launch_prefix" value="$(arg launch_prefix)" />
           <arg name="frame_id" value="map" />
         </include>
@@ -48,7 +48,7 @@
       </include>
       <group ns="map" if="$(optenv ENABLE_COSTMAP_3D_GLOBAL False)">
         <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="top_lidar_map" />
+          <arg name="sensor_name" value="top_lidar" />
           <arg name="launch_prefix" value="$(arg launch_prefix)" />
           <arg name="frame_id" value="map" />
         </include>
@@ -63,12 +63,12 @@
       </include>
       <group ns="map" if="$(optenv ENABLE_COSTMAP_3D_GLOBAL False)">
         <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="top_front_lidar_map" />
+          <arg name="sensor_name" value="top_front_lidar" />
           <arg name="launch_prefix" value="$(arg launch_prefix)" />
           <arg name="frame_id" value="map" />
         </include>
       </group>
     </group>
-    <rosparam file="$(env BAR_CONFIG)/octomap_server_sensor_overrides.yaml" command="load" />
+    <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/octomap_servers.yaml" />
   </group>
 </launch>

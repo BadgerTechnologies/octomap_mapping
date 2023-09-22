@@ -10,7 +10,6 @@
     <param name="frame_id" value="$(arg frame_id)" />
     <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/octomap_server_sensor_defaults.yaml" />
     <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/octomap_server_sensor_defaults_$(arg frame_id).yaml" />
-    <rosparam command="load" file="$(find octomap_server_launch)/params/octomap_server_sensor_$(arg sensor_name).yaml" />
   </node>
 
 </launch>
