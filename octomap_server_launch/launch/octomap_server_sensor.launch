@@ -3,8 +3,9 @@
   <arg name="sensor_name" />
   <arg name="launch_prefix" default="" />
   <arg name="frame_id" default="odom" />
+  <arg name="node_name" default="octomap_server_node" />
 
-  <node required="$(optenv KEEPALIVE true)" pkg="octomap_server" type="octomap_server_node" ns="$(arg sensor_name)" name="octomap_server_node_$(arg sensor_name)"
+  <node required="$(optenv KEEPALIVE true)" pkg="octomap_server" type="octomap_server_node" ns="$(arg sensor_name)" name="$(arg node_name)"
     output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="frame_id" value="$(arg frame_id)" />
     <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/octomap_server_sensor_defaults.yaml" />
