@@ -68,6 +68,9 @@ configuration:
             skip_count: 0
             publish_3d_map_period: 4.0
             publish_2d_period: 4.0
+            # Essentially publish on every sensor update, set this much lower
+            # than the maximum rate, which is 20Hz
+            publish_3d_map_update_period: 0.02
             segmented_topics:
               - nonground_topic: "/lidars/top_front/segmentation/obstacle_cloud"
                 ground_topic: "/lidars/top_front/segmentation/floor_cloud"
@@ -77,8 +80,8 @@ configuration:
             # after 15 hits, the expiry is 12 seconds
             # after 30 hits, the expiry is 39 seconds
             sensor_model:
-              hit: 0.5099986668799654
-              miss: 0.401312339887548
+              hit_per_second: 0.598687660112452
+              miss_per_second: 0.01798620996209155
               min: 0.5
               max: 0.9168273035060777
             expiry:
@@ -219,8 +222,8 @@ configuration:
               # enough obstacles allowing for goofy global plans. Allow the free space to
               # expire after 5 minutes so the static map re-appears.
               sensor_model:
-                hit: 0.574442516812
-                miss: 0.354343693774
+                hit_per_second: 0.6456563062257954
+                miss_per_second: 0.23147521650098246
                 min: 0.231475216501
                 max: 0.973403006423
               expiry:

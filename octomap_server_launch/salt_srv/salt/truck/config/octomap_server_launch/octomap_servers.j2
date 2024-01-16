@@ -1,1 +1,8 @@
-{{ salt['pillar.get']('configuration:software:octomap_server:params', {}) | yaml(false) }}
+{%- set octomap_server_params = salt['pillar.get']('configuration:software:octomap_server:params', {}) -%}
+{%- set top_front_hz = salt['pillar.get']('configuration:hardware:sensors:lidars:top_front:rpm', 600) // 60 -%}
+{%- do octomap_server_params.top_front_lidar.octomap_server_node.sensor_model.update({"expected_rate": top_front_hz}) -%}
+{%- do octomap_server_params.map.top_front_lidar.octomap_server_node.sensor_model.update({"expected_rate": top_front_hz}) -%}
+{#- For global costmap, skip frames to integrate data at 2 Hz. -#}
+{#- Integrating data faster uses more CPU and has a low benefit for the global costmap. -#}
+{%- do octomap_server_params.map.top_front_lidar.octomap_server_node.update({"skip_count": top_front_hz // 2 - 1}) -%}
+{{ octomap_server_params | yaml(false) }}
