@@ -40,12 +40,16 @@ configuration:
             segmented_topics:
               - nonground_topic: "/depthcam_proximity_front/depth_nofloor_nocliff/points"
                 ground_topic: "/depthcam_proximity_front/depth_floor/points"
+                nonmarking_nonground_topic: "/depthcam_proximity_front/depth_deskewed/points"
               - nonground_topic: "/depthcam_proximity_back/depth_nofloor_nocliff/points"
                 ground_topic: "/depthcam_proximity_back/depth_floor/points"
+                nonmarking_nonground_topic: "/depthcam_proximity_back/depth_deskewed/points"
               - nonground_topic: "/depthcam_proximity_front2/depth_nofloor_nocliff/points"
                 ground_topic: "/depthcam_proximity_front2/depth_floor/points"
+                nonmarking_nonground_topic: "/depthcam_proximity_front2/depth_deskewed/points"
               - nonground_topic: "/depthcam_proximity_back2/depth_nofloor_nocliff/points"
                 ground_topic: "/depthcam_proximity_back2/depth_floor/points"
+                nonmarking_nonground_topic: "/depthcam_proximity_back2/depth_deskewed/points"
             # Use values appropriate for a very short-term memory (<30 seconds)
             # after 15 hits (about a second) the expiry is only 5 seconds.
             # after 30 hits (about two seconds) the expiry is 10 seconds
