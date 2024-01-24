@@ -81,9 +81,9 @@ configuration:
             # after 30 hits, the expiry is 39 seconds
             sensor_model:
               hit_per_second: 0.598687660112452
-              miss_per_second: 0.01798620996209155
+              miss_per_second: 0.06496916912866402
               min: 0.5
-              max: 0.9168273035060777
+              max: 0.7685247834990176
             expiry:
               at_negative_infinity: 3.0
               at_positive_infinity: 60.0
