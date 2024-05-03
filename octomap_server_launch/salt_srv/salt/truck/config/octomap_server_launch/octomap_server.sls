@@ -1,5 +1,5 @@
 {% from 'badger-lib.sls' import enable_service with context %}
-{% set config_dir = salt['pillar.get']('configuration:config_dir', "/var/snap/bar-base/current/config") %}
+{% set config_dir = salt['pillar.get']('configuration:config_dir') %}
 
 octomap_server_sensor_defaults_yaml:
   file.managed:
