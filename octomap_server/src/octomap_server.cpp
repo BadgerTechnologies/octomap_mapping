@@ -112,6 +112,9 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions & node_options)
   min_x_size_ = declare_parameter("min_x_size", 0.0);
   min_y_size_ = declare_parameter("min_y_size", 0.0);
 
+  std::vector<std::string> cloud_topics =
+    declare_parameter("cloud_topics", std::vector<std::string>());
+
   {
     rcl_interfaces::msg::ParameterDescriptor filter_speckles_desc;
     filter_speckles_desc.description = "Filter speckle nodes (with no neighbors)";
@@ -308,13 +311,12 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions & node_options)
   tf2_listener_ =
     std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
-  using std::chrono_literals::operator""s;
-  point_cloud_sub_.subscribe(this, "cloud_in", rmw_qos_profile_sensor_data);
-  tf_point_cloud_sub_ = std::make_shared<tf2_ros::MessageFilter<PointCloud2>>(
-    point_cloud_sub_, *tf2_buffer_, world_frame_id_, 5, this->get_node_logging_interface(),
-    this->get_node_clock_interface(), 5s);
-
-  tf_point_cloud_sub_->registerCallback(&OctomapServer::insertCloudCallback, this);
+  if (cloud_topics.size() == 0) {
+    cloud_topics.push_back("cloud_in");
+  }
+  for (const std::string & topic : cloud_topics) {
+    addCloudTopic(topic);
+  }
 
   octomap_binary_srv_ = create_service<OctomapSrv>(
     "octomap_binary", std::bind(&OctomapServer::onOctomapBinarySrv, this, _1, _2));
@@ -333,6 +335,30 @@ OctomapServer::OctomapServer(const rclcpp::NodeOptions & node_options)
   if (!openFile(filename)) {
     RCLCPP_WARN(get_logger(), "Could not open file %s", filename.c_str());
   }
+}
+
+OctomapServer::~OctomapServer()
+{
+  // Manually reset shared pointers which internally reference the tf_buffer_
+  // to ensure proper order of destruction because the tf_buffer_ is declared
+  // later in the class than the subscriber shared pointers.
+
+  // Because the TF message filter references the subscriber, ensure they
+  // are destroyed first.
+  tf_point_cloud_subs_.clear();
+  point_cloud_subs_.clear();
+}
+
+void OctomapServer::addCloudTopic(const std::string & topic)
+{
+  using std::chrono_literals::operator""s;
+  point_cloud_subs_.push_back(std::make_shared<message_filters::Subscriber<PointCloud2>>());
+  point_cloud_subs_.back()->subscribe(this, topic, rmw_qos_profile_sensor_data);
+  tf_point_cloud_subs_.push_back(
+    std::make_shared<tf2_ros::MessageFilter<PointCloud2>>(
+      *point_cloud_subs_.back(), *tf2_buffer_, world_frame_id_, 5,
+      this->get_node_logging_interface(), this->get_node_clock_interface(), 5s));
+  tf_point_cloud_subs_.back()->registerCallback(&OctomapServer::insertCloudCallback, this);
 }
 
 bool OctomapServer::openFile(const std::string & filename)

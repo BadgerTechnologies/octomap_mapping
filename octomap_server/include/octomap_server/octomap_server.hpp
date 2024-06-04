@@ -106,6 +106,7 @@ public:
   using ResetSrv = std_srvs::srv::Empty;
 
   explicit OctomapServer(const rclcpp::NodeOptions & node_options);
+  virtual ~OctomapServer();
   virtual bool onOctomapBinarySrv(
     const std::shared_ptr<OctomapSrv::Request> req,
     const std::shared_ptr<OctomapSrv::Response> res);
@@ -123,6 +124,9 @@ public:
   virtual bool openFile(const std::string & filename);
 
 protected:
+  /// Add an input point cloud topic
+  void addCloudTopic(const std::string & topic);
+
   inline static void updateMinKey(const octomap::OcTreeKey & in, octomap::OcTreeKey & min)
   {
     for (size_t i = 0; i < 3; ++i) {
@@ -247,8 +251,8 @@ protected:
   rclcpp::Publisher<PointCloud2>::SharedPtr point_cloud_pub_;
   rclcpp::Publisher<OccupancyGrid>::SharedPtr map_pub_;
   rclcpp::Publisher<MarkerArray>::SharedPtr fmarker_pub_;
-  message_filters::Subscriber<PointCloud2> point_cloud_sub_;
-  std::shared_ptr<tf2_ros::MessageFilter<PointCloud2>> tf_point_cloud_sub_;
+  std::vector<std::shared_ptr<message_filters::Subscriber<PointCloud2>>> point_cloud_subs_;
+  std::vector<std::shared_ptr<tf2_ros::MessageFilter<PointCloud2>>> tf_point_cloud_subs_;
   rclcpp::Service<OctomapSrv>::SharedPtr octomap_binary_srv_;
   rclcpp::Service<OctomapSrv>::SharedPtr octomap_full_srv_;
   rclcpp::Service<BBoxSrv>::SharedPtr clear_bbox_srv_;
