@@ -497,6 +497,8 @@ void OctomapServer::insertScan(
 {
   const auto sensor_origin = octomap::pointTfToOctomap(sensor_origin_tf);
 
+  bool discrete = true;
+
   if (!octree_->coordToKeyChecked(sensor_origin, update_bbox_min_) ||
     !octree_->coordToKeyChecked(sensor_origin, update_bbox_max_))
   {
@@ -513,17 +515,24 @@ void OctomapServer::insertScan(
       point = sensor_origin + (point - sensor_origin).normalized() * max_range_;
     }
 
-    // only clear space (ground points)
-    if (octree_->computeRayKeys(sensor_origin, point, key_ray_)) {
-      free_cells.insert(key_ray_.begin(), key_ray_.end());
-    }
-
+    // free endpoint
     octomap::OcTreeKey end_key;
     if (octree_->coordToKeyChecked(point, end_key)) {
+      if (!free_cells.insert(end_key).second) {
+        if (discrete) {
+          // This ray has aleady been traced
+          continue;
+        }
+      }
       updateMinKey(end_key, update_bbox_min_);
       updateMaxKey(end_key, update_bbox_max_);
     } else {
       RCLCPP_ERROR_STREAM(get_logger(), "Could not generate Key for endpoint " << point);
+    }
+
+    // only clear space (ground points)
+    if (octree_->computeRayKeys(sensor_origin, point, key_ray_)) {
+      free_cells.insert(key_ray_.begin(), key_ray_.end());
     }
   }
 
