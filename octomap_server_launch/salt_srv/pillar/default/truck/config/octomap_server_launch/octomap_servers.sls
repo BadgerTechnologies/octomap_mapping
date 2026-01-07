@@ -240,15 +240,14 @@ configuration:
               # Default parameters for octomap_server for low depth cameras in map frame
               skip_count: 9
               segmented_topics:
-                - nonground_topic: "/depthcam_low_front/depth/obstacle"
-                - nonground_topic: "/depthcam_low_back/depth/obstacle"
+                - nonground_topic: "/depthcam_low_front/depth/filtered_z"
+                - nonground_topic: "/depthcam_low_back/depth/filtered_z"
               # Use values appropriate for a very short-term memory (<30 seconds)
-              # Historically the global costmap had zero memory of depth camera data.
-              # Because # of the limited field of view, burning in too long causes problems
-              # with clearing, as we will not approach the obstacle close enough to clear via
-              # observation.
               # after 3 hits (about a second) the expiry is only 5 seconds.
               # after 6 hits (about two seconds) the expiry is 10 seconds
+              # Even though we have a better view of our surroundings with this sensor,
+              # we will get a lot of foot traffic with the low nature of these cameras
+              # and therefore want to expire the data relatively quickly.
               sensor_model:
                 hit: 0.5744425168116589
                 miss: 0.08317269649392234
