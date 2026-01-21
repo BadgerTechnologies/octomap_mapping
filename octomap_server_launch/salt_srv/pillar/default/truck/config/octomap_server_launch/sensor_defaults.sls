@@ -26,14 +26,15 @@ configuration:
         {# Default parameters for octomap_server running in odom frame #}
         resolution: .05
         base_2d_distance_limit: 4.0
-        base_height_limit: 2.05
+        {# base_height_limit overridden in .j2 file #}
         base_depth_limit: 0.0
         base_distance_limit_time_delta: 2.0
 
       octomap_server_sensor_default_map:
         {# Default parameters for octomap_server running in map frame #}
         resolution: .05
-        base_height_limit: 3.00
+        {# base_height_limit overridden in .j2 file #}
+        base_height_clearance_tolerance: 0.5
         base_depth_limit: 0.0
         {# do not publish the full map very often, as it may be huge! #}
         publish_3d_map_period: 60.0
