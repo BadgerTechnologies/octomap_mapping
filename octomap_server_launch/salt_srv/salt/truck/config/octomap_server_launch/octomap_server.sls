@@ -1,4 +1,4 @@
-{% from 'badger-lib.sls' import enable_service with context %}
+{% from 'badger-lib.sls' import enable_service, disable_service with context %}
 {% set config_dir = salt['pillar.get']('configuration:config_dir') %}
 
 octomap_server_sensor_defaults_yaml:
@@ -29,11 +29,14 @@ octomap_servers_yaml:
     - source: salt://truck/config/octomap_server_launch/octomap_servers.j2
     - template: jinja
 
-enable_costmaps_3d_yaml:
-  file.managed:
-    - makedirs: true
-    - name: {{ config_dir }}/octomap_server/enable_costmaps_3d.yaml
-    - source: salt://truck/config/octomap_server_launch/enable_costmaps_3d.py
-    - template: py
+{% if salt['pillar.get']('configuration:software:costmaps:enable_local_costmap_3d', False) %}
+{{ enable_service('octomap-server-odom-frame', ['octomap_server_sensor_defaults_yaml', 'octomap_server_sensor_defaults_odom_yaml', 'octomap_server_sensor_defaults_map_yaml', 'octomap_servers_yaml']) }}
+{% else %}
+{{ disable_service('octomap-server-odom-frame') }}
+{% endif %}
 
-{{ enable_service('occupancy-mapping-3d', ['octomap_server_sensor_defaults_yaml', 'octomap_server_sensor_defaults_odom_yaml', 'octomap_server_sensor_defaults_map_yaml', 'octomap_servers_yaml']) }}
+{% if salt['pillar.get']('configuration:software:costmaps:enable_global_costmap_3d', False) %}
+{{ enable_service('octomap-server-map-frame', ['octomap_server_sensor_defaults_yaml', 'octomap_server_sensor_defaults_odom_yaml', 'octomap_server_sensor_defaults_map_yaml', 'octomap_servers_yaml']) }}
+{% else %}
+{{ disable_service('octomap-server-map-frame') }}
+{% endif %}

@@ -3,6 +3,7 @@ project(octomap_server_launch)
 
 find_package(catkin REQUIRED)
 find_package(badger_salt_cmake)
+find_package(badger_systemd)
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -18,3 +19,8 @@ install(DIRECTORY launch
 
 install_salt_pillar_dir(salt_srv/pillar)
 install_salt_state_dir(salt_srv/salt)
+
+badger_install_systemd_service(FILES
+  systemd/ros.octomap-server-map-frame.service
+  systemd/ros.octomap-server-odom-frame.service
+)

@@ -1,28 +1,17 @@
 <launch>
-  <arg name="debug" default="false" />
-  <arg name="profile" default="false" />
-  <arg name="launch_prefix_debug" default="gdb -ex run --args" />
-  <arg name="launch_prefix_profile" default="/usr/bin/env LD_PRELOAD=/usr/lib/libprofiler.so.0 CPUPROFILE=/tmp/prof.out CPUPROFILESIGNAL=12" />
-  <arg name="launch_prefix" default="$(eval arg('launch_prefix_debug') if arg('debug') else arg('launch_prefix_profile') if arg('profile') else '')" />
-  <env name="ROSCONSOLE_FORMAT" value='[${severity}] [${time}]: ${node}: ${message}' />
-  <group ns="octomap">
-    <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/enable_costmaps_3d.yaml" />
-    <arg name="enable_global_costmap_3d" value="$(optparam enable_global_costmap_3d False)" />
+  <arg name="frame_id" default="" />
+  <arg name="ns" default="" />
+  <rosparam command="load" ns="octomap" file="$(env BAR_CONFIG)/octomap_server/octomap_servers.yaml" />
+
+  <group ns="$(arg ns)">
     <!-- Front lidar -->
     <group if="$(optparam /hardware/sensors/lidars/front/present False)">
       <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
         <arg name="sensor_name" value="front_lidar" />
-        <arg name="launch_prefix" value="$(arg launch_prefix)" />
-        <arg name="frame_id" value="odom" />
+        <arg name="frame_id" value="$(arg frame_id)" />
       </include>
-      <group ns="map" if="$(eval arg('enable_global_costmap_3d'))">
-        <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="front_lidar" />
-          <arg name="launch_prefix" value="$(arg launch_prefix)" />
-          <arg name="frame_id" value="map" />
-        </include>
-      </group>
     </group>
+
     <!-- Proximity cameras. It is OK for all proximity cameras to cross-clear. -->
     <group if="$(eval optparam('/hardware/sensors/cameras/depth/proximity_front/present', 'false').lower() == 'true' or
                       optparam('/hardware/sensors/cameras/depth/proximity_front2/present', 'false').lower() == 'true' or
@@ -30,79 +19,42 @@
                       optparam('/hardware/sensors/cameras/depth/proximity_back2/present', 'false').lower() == 'true')">
       <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
         <arg name="sensor_name" value="proximity" />
-        <arg name="launch_prefix" value="$(arg launch_prefix)" />
-        <arg name="frame_id" value="odom" />
+        <arg name="frame_id" value="$(arg frame_id)" />
       </include>
-      <group ns="map" if="$(eval arg('enable_global_costmap_3d'))">
-        <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="proximity" />
-          <arg name="launch_prefix" value="$(arg launch_prefix)" />
-          <arg name="frame_id" value="map" />
-        </include>
-      </group>
     </group>
+
     <!-- Top lidar -->
     <group if="$(optparam /hardware/sensors/lidars/top_hat/present False)">
       <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
         <arg name="sensor_name" value="top_lidar" />
-        <arg name="launch_prefix" value="$(arg launch_prefix)" />
-        <arg name="frame_id" value="odom" />
+        <arg name="frame_id" value="$(arg frame_id)" />
       </include>
-      <group ns="map" if="$(eval arg('enable_global_costmap_3d'))">
-        <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="top_lidar" />
-          <arg name="launch_prefix" value="$(arg launch_prefix)" />
-          <arg name="frame_id" value="map" />
-        </include>
-      </group>
     </group>
+
     <!-- Top front lidar -->
     <group if="$(optparam /hardware/sensors/lidars/top_front/present False)">
       <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
         <arg name="sensor_name" value="top_front_lidar" />
-        <arg name="launch_prefix" value="$(arg launch_prefix)" />
-        <arg name="frame_id" value="odom" />
+        <arg name="frame_id" value="$(arg frame_id)" />
       </include>
-      <group ns="map" if="$(eval arg('enable_global_costmap_3d'))">
-        <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="top_front_lidar" />
-          <arg name="launch_prefix" value="$(arg launch_prefix)" />
-          <arg name="frame_id" value="map" />
-        </include>
-      </group>
     </group>
+
     <!-- Corner lidars -->
     <group if="$(eval optparam('/hardware/sensors/lidars/front_right/present', 'false').lower() == 'true' or
                       optparam('/hardware/sensors/lidars/back_left/present', 'false').lower() == 'true')">
       <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
         <arg name="sensor_name" value="corner_lidars" />
-        <arg name="launch_prefix" value="$(arg launch_prefix)" />
-        <arg name="frame_id" value="odom" />
+        <arg name="frame_id" value="$(arg frame_id)" />
       </include>
-      <group ns="map" if="$(eval arg('enable_global_costmap_3d'))">
-        <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="corner_lidars" />
-          <arg name="launch_prefix" value="$(arg launch_prefix)" />
-          <arg name="frame_id" value="map" />
-        </include>
-      </group>
     </group>
+
     <!-- Low Depthcameras -->
     <group if="$(eval optparam('/hardware/sensors/cameras/depth/low_front/present', 'false').lower() == 'true' or
                       optparam('/hardware/sensors/cameras/depth/low_back/present', 'false').lower() == 'true')">
       <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
         <arg name="sensor_name" value="low_cameras" />
-        <arg name="launch_prefix" value="$(arg launch_prefix)" />
-        <arg name="frame_id" value="odom" />
+        <arg name="frame_id" value="$(arg frame_id)" />
       </include>
-      <group ns="map" if="$(eval arg('enable_global_costmap_3d'))">
-        <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
-          <arg name="sensor_name" value="low_cameras" />
-          <arg name="launch_prefix" value="$(arg launch_prefix)" />
-          <arg name="frame_id" value="map" />
-        </include>
-      </group>
     </group>
-    <rosparam command="load" file="$(env BAR_CONFIG)/octomap_server/octomap_servers.yaml" />
   </group>
 </launch>
