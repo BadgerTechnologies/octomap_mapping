@@ -156,8 +156,8 @@ configuration:
             # Default parameters for octomap_server for proximity depth cameras
             skip_count: 0
             segmented_topics:
-              - nonground_topic: "/depthcam_low_front/depth/filtered_z"
-              - nonground_topic: "/depthcam_low_back/depth/filtered_z"
+              - nonground_topic: "/depthcam_low_front/depth/obstacles"
+              - nonground_topic: "/depthcam_low_back/depth/obstacles"
         map:
           front_lidar:
             octomap_server_node:
@@ -240,8 +240,8 @@ configuration:
               # Default parameters for octomap_server for low depth cameras in map frame
               skip_count: 9
               segmented_topics:
-                - nonground_topic: "/depthcam_low_front/depth/filtered_z"
-                - nonground_topic: "/depthcam_low_back/depth/filtered_z"
+                - nonground_topic: "/depthcam_low_front/depth/obstacles"
+                - nonground_topic: "/depthcam_low_back/depth/obstacles"
               # Use values appropriate for a very short-term memory (<30 seconds)
               # after 3 hits (about a second) the expiry is only 5 seconds.
               # after 6 hits (about two seconds) the expiry is 10 seconds
