@@ -143,9 +143,25 @@ configuration:
 
         low_cameras:
           octomap_server_node:
+            publish_3d_map_period: 4.0
+            publish_2d_period: 4.0
             segmented_topics:
               - nonground_topic: "/depthcam_low_front/depth/obstacles"
               - nonground_topic: "/depthcam_low_back/depth/obstacles"
+            sensor_model:
+              hit_per_second: 0.598687660112452
+              miss_per_second: 0.06496916912866402
+              min: 0.5
+              max: 0.7685247834990176
+            # 60s max. 12s expiry at 15 hits, 39s at 30 hits.
+            expiry:
+              at_negative_infinity: 3.0
+              at_positive_infinity: 60.0
+              x1: 15
+              at_x1: 12
+              x2: 30
+              at_x2: 39
+              free_space: 60.0
 
         # =============================================================
         # Map-frame servers
@@ -286,12 +302,14 @@ configuration:
                 miss: 0.08317269649392234
                 min: 0.23147521650098246
                 max: 0.9734030064231342
-              # 30s max. 5s expiry at ~1s of hits, 10s at ~2s.
+              # 10min max. 12s expiry at 3 hits, 300s at 6 hits.
+              # Low obstacles leave the FoV as the robot passes but no other
+              # sensor can observe them, so long memory is needed.
               expiry:
                 at_negative_infinity: 3.0
-                at_positive_infinity: 30.0
+                at_positive_infinity: 600.0
                 x1: 3
-                at_x1: 5
+                at_x1: 12.0
                 x2: 6
-                at_x2: 10
-                free_space: 30.0
+                at_x2: 300.0
+                free_space: 300.0
