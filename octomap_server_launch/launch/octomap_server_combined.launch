@@ -1,0 +1,60 @@
+<launch>
+  <arg name="frame_id" default="" />
+  <arg name="ns" default="" />
+  <rosparam command="load" ns="octomap" file="$(env BAR_CONFIG)/octomap_server/octomap_servers.yaml" />
+
+  <group ns="$(arg ns)">
+    <!-- Front lidar -->
+    <group if="$(optparam /hardware/sensors/lidars/front/present False)">
+      <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
+        <arg name="sensor_name" value="front_lidar" />
+        <arg name="frame_id" value="$(arg frame_id)" />
+      </include>
+    </group>
+
+    <!-- Proximity cameras. It is OK for all proximity cameras to cross-clear. -->
+    <group if="$(eval optparam('/hardware/sensors/cameras/depth/proximity_front/present', 'false').lower() == 'true' or
+                      optparam('/hardware/sensors/cameras/depth/proximity_front2/present', 'false').lower() == 'true' or
+                      optparam('/hardware/sensors/cameras/depth/proximity_back/present', 'false').lower() == 'true' or
+                      optparam('/hardware/sensors/cameras/depth/proximity_back2/present', 'false').lower() == 'true')">
+      <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
+        <arg name="sensor_name" value="proximity" />
+        <arg name="frame_id" value="$(arg frame_id)" />
+      </include>
+    </group>
+
+    <!-- Top lidar -->
+    <group if="$(optparam /hardware/sensors/lidars/top_hat/present False)">
+      <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
+        <arg name="sensor_name" value="top_lidar" />
+        <arg name="frame_id" value="$(arg frame_id)" />
+      </include>
+    </group>
+
+    <!-- Top front lidar -->
+    <group if="$(optparam /hardware/sensors/lidars/top_front/present False)">
+      <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
+        <arg name="sensor_name" value="top_front_lidar" />
+        <arg name="frame_id" value="$(arg frame_id)" />
+      </include>
+    </group>
+
+    <!-- Corner lidars -->
+    <group if="$(eval optparam('/hardware/sensors/lidars/front_right/present', 'false').lower() == 'true' or
+                      optparam('/hardware/sensors/lidars/back_left/present', 'false').lower() == 'true')">
+      <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
+        <arg name="sensor_name" value="corner_lidars" />
+        <arg name="frame_id" value="$(arg frame_id)" />
+      </include>
+    </group>
+
+    <!-- Low Depthcameras -->
+    <group if="$(eval optparam('/hardware/sensors/cameras/depth/low_front/present', 'false').lower() == 'true' or
+                      optparam('/hardware/sensors/cameras/depth/low_back/present', 'false').lower() == 'true')">
+      <include file="$(find octomap_server_launch)/launch/octomap_server_sensor.launch">
+        <arg name="sensor_name" value="low_cameras" />
+        <arg name="frame_id" value="$(arg frame_id)" />
+      </include>
+    </group>
+  </group>
+</launch>

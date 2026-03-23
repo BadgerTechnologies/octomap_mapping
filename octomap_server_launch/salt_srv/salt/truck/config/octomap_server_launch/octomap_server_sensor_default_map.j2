@@ -1,0 +1,7 @@
+{%- set map_params = salt['pillar.get']('configuration:software:octomap_server:octomap_server_sensor_default_map', {}) %}
+{%- set clearance = salt['pillar.get']('configuration:hardware:geometry:clearance') %}
+{%- set tolerance = map_params.base_height_clearance_tolerance %}
+
+{%- do map_params.update({"base_height_limit": clearance + tolerance }) %}
+
+{{ map_params | yaml(false) }}

@@ -1,0 +1,3 @@
+[Service]
+ExecStart=/opt/ros/noetic/bin/roslaunch --wait octomap_server_launch octomap_server_combined.launch frame_id:=map ns:=octomap/map
+MemoryMax=2G
