@@ -1,0 +1,15 @@
+name: lint
+on: [push]
+
+jobs:
+  lint:
+    name: Badger Linting
+    runs-on:
+      - self-hosted
+      - k8s
+    steps:
+      - name: Run Linting
+        uses: BadgerTechnologies/ros-ci-docker/linter@linter-v2
+        with:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PASS: ${{ secrets.HARBOR_PASS }}
