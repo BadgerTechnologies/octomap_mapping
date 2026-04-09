@@ -68,9 +68,6 @@ configuration:
           octomap_server_node:
             publish_3d_map_period: 4.0
             publish_2d_period: 4.0
-            # Publish incremental octomap updates at up to 50Hz so new obstacles
-            # appear in the costmap within one sensor frame.
-            publish_3d_map_update_period: 0.02
             segmented_topics:
               - nonground_topic: "/lidars/top_front/segmentation/obstacle_cloud"
                 ground_topic: "/lidars/top_front/segmentation/floor_cloud"
@@ -118,9 +115,6 @@ configuration:
           octomap_server_node:
             publish_3d_map_period: 4.0
             publish_2d_period: 4.0
-            # Publish incremental octomap updates at up to 50Hz so new obstacles
-            # appear in the costmap within one sensor frame.
-            publish_3d_map_update_period: 0.02
             segmented_topics:
               - nonground_topic: "/lidars/corner_lidars/front_right/segmentation/obstacle_cloud"
                 sensor_origin_frame_id: "front_right_lidar_parallel_to_base"
@@ -143,6 +137,7 @@ configuration:
 
         low_cameras:
           octomap_server_node:
+            skip_count: 1
             publish_3d_map_period: 4.0
             publish_2d_period: 4.0
             segmented_topics:
